@@ -28,6 +28,13 @@ customer login → roles [customer]; `GET /me` → own record only;
 customer `GET /staff/clients` → 403; `POST /api/v1/auth/logout` → ok, then `/me` → 401.
 Unverified-login gating, replay/single-use, reset, and bilingual errors covered by T2/T7/T8.
 
+## Browser E2E, staging /manage (2026-11-25, Chromium)
+- Anonymous load: demo UI intact, zero JS errors (one expected 401 from the session probe).
+- Staff sign-in via UI as staging admin → LIVE pill + account email in topbar, toast "Signed in: live staging records."
+- Clients page: exactly the 2 real DB records (Demo Owner, E2E Client One); zero fictional demo clients; honest M4/M5 note.
+- Profile drawer: real fields (email, locale, household, store, cadence, since); program shows "No active program yet" (no invented plan/credits).
+- Initial wiring bug found by this test (TDZ on `ui` init blanked the page): fixed in 04513e8, re-verified green.
+
 ## Limitations / deferred
 - Full browser click-flow (register → dashboard chip visible) not executed here: no browser automation in this environment; chip verified served + API verified; recommend manual staging walkthrough.
 - Support role ungranted; dietitian assigned-scope only; MFA enrollment endpoint deferred to M1-hardening (type + flag ready).
