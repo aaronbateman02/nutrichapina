@@ -5,7 +5,7 @@ import { msg } from '../i18n.js';
 import {
   hashPassword, checkPassword, newToken, tokenHash, signAccess,
   setAuthCookies, clearAuthCookies, readCookies, requireAuth, rateLimit, audit,
-} from './auth.js';
+} from '../auth.js';
 import { newSecret, totpVerify, otpauthUrl } from '../mfa.js';
 
 const router = Router();
