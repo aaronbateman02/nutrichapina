@@ -4,7 +4,7 @@ Source plan: `Implementation Plans/Nutri_Chapina_Full_Implementation_Plan.zip`
 (`docs/RECIPE_LIBRARY_SPEC.md`, `docs/DATA_MODEL_AND_APIS.md`, `docs/ACCEPTANCE_AND_TEST_PLAN.md` T01/T02).
 Live production: `https://nutrichapina.com/` untouched. All M2 work targets staging only.
 
-## Migrations (staging DB, `node dist/migrate.js`)
+## Migrations (staging DB, `node dist/migrate.js` in throwaway container on staging net)
 - 004_recipes (ingredients, translations, conversions, recipes, revisions, contents, items)
 - 005_platform (program_templates, client_plans, providers, appointments, conversations, messages)
 - 006_menus (program_versions, program_day_slots, client_plan_meals, plan_approval_events,
@@ -13,9 +13,28 @@ Live production: `https://nutrichapina.com/` untouched. All M2 work targets stag
 - 008_program_version_status (M2 closeout: adds `changes_requested` to
   `program_versions.status` CHECK so reviewer return-for-corrections persists;
   004 already allowed it for recipe revisions)
+- Deploy 2026-11-25: synced `src/routes/{catalog,programs}.ts`, `tests/m2.test.ts`,
+  `migrations/008*` to `/opt/nutrichapina-staging/api`, rebuilt `nutrichapina-api:staging`
+  (`tsc` clean inside build), ran 008 via throwaway container, recreated the
+  `nutrichapina-api` container with identical config (staging net, 127.0.0.1:8084,
+  uploads volume, staging env). Prod containers/files/nginx untouched
+  (prod `/` 200, prod `/api` 404 as before — no prod API exists).
 
-## Test suite (`npx vitest run`, ephemeral test DB)
-M1 T1–T8 (8/8) unchanged. M2 T11–T16 (`apps/api/tests/m2.test.ts`):
+## Test suite — ACTUAL STAGING RUN 2026-11-25 (`apps/api/tests/`, ephemeral `nutrichapina_test` DB)
+Command (throwaway `node:22-alpine` container on `nutrichapina-staging-net`,
+`TEST_DATABASE_URL=.../nutrichapina_test`, `JWT_SECRET=test-only`, `COOKIE_SECURE=false`):
+`npm ci && npm test` → **16/16 pass (~20s)**.
+- m1.test.ts 10/10: T1 register/dedupe/verify, T2 login gating + replay, T3 session/household,
+  T4 refresh/logout, T5 isolation + customer 403 on staff, T6 admin/dietitian scope,
+  T7 reset rotation, T9 staff MFA enroll/gate/remove, T10 cross-origin mutations blocked.
+- m2.test.ts 6/6: T11 ingredients, T12 recipe lifecycle + immutability, T13 nutrition gate,
+  T14 7-day program + assign + grocery math + cross-customer denial, T15 upload validation,
+  T16 closeout (explicit validate, deterministic preview 500 g @ 4 servings → 125 g @ 1 /
+  250 g @ 2, request-changes → resubmit → approve → publish → archive, duplicate 201/409,
+  substitutions, program request-changes/archive 409s on draft).
+- First T16 run caught a REAL enforcement working as designed: approve-from-`changes_requested`
+  returns 409; the correct loop is changes_requested → edit → resubmit → approve.
+  Test was fixed to follow the spec loop; server untouched. Full re-run 6/6 green.
 - T11 ingredients: validation 422, case-insensitive duplicate 409, bad conversion 422,
   support 403, customer 403 on staff routes; conversions append-only.
 - T12 recipe lifecycle: draft → fix missing `steps_es` → submit → approve requires
@@ -44,8 +63,8 @@ M1 T1–T8 (8/8) unchanged. M2 T11–T16 (`apps/api/tests/m2.test.ts`):
 Run note (this Windows workstation): no local Postgres/Docker here, so the suite was
 last green on the staging host path; `npm run build` (tsc) is green locally, and the new
 T16 block typechecks clean (`tsc --noEmit` on the test file).
-Re-run on staging: `DATABASE_URL=... TEST_DATABASE_URL=... npx vitest run` → expect 14/14
-(M1 8 + M2 6). Do not run against production.
+Re-run anywhere: `DATABASE_URL=... TEST_DATABASE_URL=... npx vitest run` → expect 16/16
+(10 M1 + 6 M2). Never against production (tests DROP SCHEMA on the TEST database only).
 
 ## M2 closeout additions (this pass, additive only — no existing test touched)
 - `POST /staff/recipes/revisions/:revId/validate` — explicit pre-approval check
@@ -68,16 +87,30 @@ Re-run on staging: `DATABASE_URL=... TEST_DATABASE_URL=... npx vitest run` → e
   `POST /staff/programs/versions/:vid/archive` (`approved|published` → `archived`).
   Assigned client plans snapshot meals at assign time, so archive never rewrites history.
 
-## Live staging walkthrough (fictional accounts, through nginx)
-1. Admin creates ingredient `Chicken breast, raw` + `Dry rice` with EN/ES names.
-2. Dietitian creates recipe (4 servings, 500 g chicken + 200 g rice, EN+ES titles/steps),
-   saves draft, reopens (persistence, unpublished), previews 1 vs 4 servings (deterministic),
-   submits → approves (`allergens_reviewed:true`) → publishes; edits create v2 draft,
-   v1 stays published.
-3. Admin builds 7-day program from published rev, submits → approves → publishes,
-   assigns to customer A; customer A reads plan + recipe (ES toggle works);
-   customer B denied (plan 404, recipe 403).
-4. Support attempts approve → 403 server-side (not just UI-hidden).
+## Live staging walkthrough — ACTUAL RUN 2026-11-25, 18/18 green (fictional accounts)
+Script: `ops/m2-verify-walkthrough.ps1` (public HTTPS through nginx, cookie sessions).
+Seed/cleanup: `ops/m2-verify-seed.sql` / `ops/m2-verify-cleanup.sql`
+(SQL only: register rate-limiter `reg:<ip>` 10/hr correctly throttled repeated script runs,
+so accounts were seeded with the same bcrypt-12 hash the API uses, then verified via SQL —
+all `m2.verify.*@example.test`, clearly fictional).
+1. Dietitian login shows roles `[customer, dietitian]`; creates `M2 Verify Chicken` (+kg→g
+   conversion) and `M2 Verify Rice` → 201.
+2. Creates `m2-verify-bowl` (4 servings, 500 g + 200 g, EN+ES titles/steps) → draft 201;
+   explicit validate → `valid:true`; preview `servings=1` → 125 g deterministic.
+3. Submit → approve (`allergens_reviewed:true`) → publish → 200 each.
+4. Creates `M2 Verify 7-day` program; PUT 21 slots (7×breakfast/lunch/dinner) → `slots:21`;
+   submit → approve → publish → 200.
+5. Assigns published version to custA (dietitian-assigned scope via
+   `primary_professional_id`) → `meals:21`.
+6. custA: 1 plan → 21 meals; recipe read OK with `nutrition:null, nutrition_verified:false`;
+   custB: plan → 404, recipe → 403. EN/ES error envelopes confirmed on the wire.
+7. Cleanup: all walkthrough rows deleted in FK order (plans → slots → versions → templates →
+   substitutions → images → items → contents → revisions → recipes → conversions →
+   translations → ingredients → audit → null professional refs → users). Integrity check
+   after: 6 pre-existing staging users intact (incl. owner `bateman_aaron@hotmail.com`
+   record), 0 recipes / 0 programs / 0 plans, `schema_migrations` 001–008, API healthy.
+   Ops note: `client_profiles.primary_professional_id` has NO cascade (unlike `user_id`),
+   so cleanup must null it before deleting users — recorded here, no schema change made.
 
 ## Customer dashboard (`/dashboard`, staging)
 - No API session → pure demo, unchanged.

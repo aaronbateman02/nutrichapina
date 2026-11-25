@@ -313,9 +313,10 @@ describe('M2 recipe library + menu acceptance', () => {
     expect(rc.status).toBe(200);
     const det = await diet.get(`/api/v1/staff/recipes/revisions/${rev}`);
     expect(det.body.data.revision.status).toBe('changes_requested');
-    // changes_requested draft still editable, then approve + publish + archive
+    // changes_requested draft still editable, then resubmit → approve → publish → archive
     const edit = await diet.put(`/api/v1/staff/recipes/revisions/${rev}`).send({ servings: 4 });
     expect(edit.status).toBe(200);
+    expect((await diet.post(`/api/v1/staff/recipes/revisions/${rev}/submit`).send({})).status).toBe(200);
     expect((await diet.post(`/api/v1/staff/recipes/revisions/${rev}/approve`).send({ allergens_reviewed: true })).status).toBe(200);
     expect((await diet.post(`/api/v1/staff/recipes/revisions/${rev}/publish`).send({})).status).toBe(200);
     const arch = await diet.post(`/api/v1/staff/recipes/revisions/${rev}/archive`).send({});
