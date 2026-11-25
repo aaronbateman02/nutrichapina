@@ -40,6 +40,18 @@ router.get('/programs/:id/versions', async (req, res) => {
   res.json({ data: r.rows, error: null, request_id: req.id });
 });
 
+router.get('/programs/versions/:vid/slots', async (req, res) => {
+  const v = await query('SELECT id FROM program_versions WHERE id=$1', [req.params.vid]);
+  if (!v.rowCount) return fail(req, 'not_found', 404, res);
+  const r = await query(
+    `SELECT s.day,s.slot,s.servings,s.recipe_revision_id,rr.revision,rr.status,
+            (SELECT title FROM recipe_contents WHERE revision_id=rr.id AND locale='en') AS title_en,
+            (SELECT title FROM recipe_contents WHERE revision_id=rr.id AND locale='es') AS title_es
+     FROM program_day_slots s JOIN recipe_revisions rr ON rr.id=s.recipe_revision_id
+     WHERE s.program_version_id=$1 ORDER BY s.day,s.slot`, [req.params.vid]);
+  res.json({ data: r.rows, error: null, request_id: req.id });
+});
+
 router.post('/programs/:id/versions', async (req, res) => {
   const latest = await query<{ id: string; revision: number; status: string }>('SELECT id,revision,status FROM program_versions WHERE template_id=$1 ORDER BY revision DESC LIMIT 1', [req.params.id]);
   if (!latest.rowCount) return fail(req, 'not_found', 404, res);
