@@ -65,6 +65,52 @@ router.get('/consents', async (req, res) => {
   res.json({ data: rows, error: null, request_id: req.id });
 });
 
+router.get('/plans', async (req, res) => {
+  const rows = (await query('SELECT id,revision,status,created_at FROM client_plans WHERE client_id=$1 ORDER BY created_at DESC LIMIT 20', [req.user!.id])).rows;
+  res.json({ data: rows, error: null, request_id: req.id });
+});
+
+router.get('/plans/:id', async (req, res) => {
+  const plan = await query('SELECT id,revision,status,created_at FROM client_plans WHERE id=$1 AND client_id=$2', [req.params.id, req.user!.id]);
+  if (!plan.rowCount) return fail(req, 'not_found', 404, res);
+  const meals = await query(
+    `SELECT m.day,m.slot,m.servings,m.recipe_revision_id,rr.revision,c.locale,c.title
+     FROM client_plan_meals m JOIN recipe_revisions rr ON rr.id=m.recipe_revision_id
+     LEFT JOIN recipe_contents c ON c.revision_id=rr.id AND c.locale=$2
+     WHERE m.plan_id=$1 ORDER BY m.day,m.slot`,
+    [req.params.id, req.locale],
+  );
+  res.json({ data: { plan: plan.rows[0], meals: meals.rows }, error: null, request_id: req.id });
+});
+
+router.get('/recipes/:revisionId', async (req, res) => {
+  const rev = await query<{ id: string; status: string; servings: number; nutrition: unknown; nutrition_verified: boolean }>(
+    'SELECT id,status,servings,nutrition,nutrition_verified FROM recipe_revisions WHERE id=$1', [req.params.revisionId]);
+  if (!rev.rowCount || rev.rows[0].status !== 'published') return fail(req, 'not_found', 404, res);
+  const assigned = await query(
+    `SELECT 1 FROM client_plan_meals m JOIN client_plans p ON p.id=m.plan_id
+     WHERE p.client_id=$1 AND m.recipe_revision_id=$2 LIMIT 1`, [req.user!.id, req.params.revisionId]);
+  if (!assigned.rowCount) return fail(req, 'forbidden', 403, res);
+  const contents = await query('SELECT locale,title,description,steps FROM recipe_contents WHERE revision_id=$1', [req.params.revisionId]);
+  const items = await query(
+    `SELECT ri.quantity,ri.unit,ri.optional,i.canonical_name,t.name
+     FROM recipe_ingredients ri LEFT JOIN ingredients i ON i.id=ri.ingredient_id
+     LEFT JOIN ingredient_translations t ON t.ingredient_id=ri.ingredient_id AND t.locale=$2
+     WHERE ri.revision_id=$1`,
+    [req.params.revisionId, req.locale],
+  );
+  const r = rev.rows[0];
+  res.json({
+    data: {
+      id: r.id, servings: r.servings,
+      nutrition: r.nutrition_verified ? r.nutrition : null,
+      nutrition_verified: r.nutrition_verified,
+      contents: contents.rows, items: items.rows,
+    },
+    error: null, request_id: req.id,
+  });
+});
+
 router.post('/consents', async (req, res) => {
   const p = z.object({ document_version: z.string().max(32), locale: z.enum(['en', 'es']) }).safeParse(req.body);
   if (!p.success) return fail(req, 'invalid_input', 422, res);

@@ -1,0 +1,292 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { query } from '../db.js';
+import { msg } from '../i18n.js';
+import { requireRole, audit } from '../auth.js';
+
+const router = Router();
+// Ingredient + recipe + menu authoring: dietitian and administrator.
+// Support has no access here (read-only public data comes from customer routes).
+router.use(requireRole('administrator', 'dietitian'));
+
+const fail = (req: { locale: 'en' | 'es' }, code: string, status: number, res: { status: (n: number) => { json: (b: unknown) => void } }) =>
+  res.status(status).json({ data: null, error: { code, message: msg(code, req.locale) }, request_id: (req as unknown as { id: string }).id });
+
+const Unit = z.string().min(1).max(16);
+
+// ---------- ingredients ----------
+router.get('/ingredients', async (req, res) => {
+  const q = typeof req.query.q === 'string' ? `%${req.query.q.toLowerCase()}%` : null;
+  const r = q
+    ? await query('SELECT i.*, t.locale, t.name FROM ingredients i LEFT JOIN ingredient_translations t ON t.ingredient_id=i.id WHERE LOWER(i.canonical_name) LIKE $1 OR LOWER(t.name) LIKE $1 ORDER BY i.canonical_name LIMIT 100', [q])
+    : await query('SELECT i.*, t.locale, t.name FROM ingredients i LEFT JOIN ingredient_translations t ON t.ingredient_id=i.id ORDER BY i.canonical_name LIMIT 100');
+  res.json({ data: r.rows, error: null, request_id: req.id });
+});
+
+const ingredientBody = z.object({
+  canonical_name: z.string().min(2).max(120),
+  category: z.enum(['produce', 'protein', 'grains', 'dairy', 'pantry']).default('produce'),
+  allergen_class: z.string().max(64).nullable().optional(),
+  translations: z.object({ en: z.string().min(1).max(120), es: z.string().min(1).max(120) }),
+  conversions: z.array(z.object({ from_unit: Unit, to_unit: Unit, factor: z.number().positive().finite() })).max(20).optional(),
+});
+
+router.post('/ingredients', async (req, res) => {
+  const p = ingredientBody.safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  const dup = await query('SELECT id FROM ingredients WHERE LOWER(canonical_name)=LOWER($1)', [p.data.canonical_name]);
+  if (dup.rowCount) return fail(req, 'conflict', 409, res);
+  const ing = await query<{ id: string }>('INSERT INTO ingredients(canonical_name,category,allergen_class) VALUES ($1,$2,$3) RETURNING id',
+    [p.data.canonical_name, p.data.category, p.data.allergen_class ?? null]);
+  const id: string = ing.rows[0].id;
+  await query('INSERT INTO ingredient_translations(ingredient_id,locale,name) VALUES ($1,$2,$3),($1,$4,$5)',
+    [id, 'en', p.data.translations.en, 'es', p.data.translations.es]);
+  for (const c of p.data.conversions ?? []) {
+    await query('INSERT INTO ingredient_unit_conversions(ingredient_id,from_unit,to_unit,factor) VALUES ($1,$2,$3,$4)',
+      [id, c.from_unit, c.to_unit, c.factor]);
+  }
+  await audit(req.user!.id, 'ingredient', id, 'create');
+  res.status(201).json({ data: { id }, error: null, request_id: req.id });
+});
+
+router.patch('/ingredients/:id', async (req, res) => {
+  const p = z.object({
+    canonical_name: z.string().min(2).max(120).optional(),
+    category: z.enum(['produce', 'protein', 'grains', 'dairy', 'pantry']).optional(),
+    allergen_class: z.string().max(64).nullable().optional(),
+    translations: z.object({ en: z.string().min(1).max(120), es: z.string().min(1).max(120) }).optional(),
+  }).safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  const cur = await query('SELECT id FROM ingredients WHERE id=$1', [req.params.id]);
+  if (!cur.rowCount) return fail(req, 'not_found', 404, res);
+  const v = p.data;
+  await query('UPDATE ingredients SET canonical_name=COALESCE($1,canonical_name), category=COALESCE($2,category), allergen_class=COALESCE($3,allergen_class) WHERE id=$4',
+    [v.canonical_name ?? null, v.category ?? null, v.allergen_class ?? null, req.params.id]);
+  if (v.translations) {
+    await query('INSERT INTO ingredient_translations(ingredient_id,locale,name) VALUES ($1,$2,$3),($1,$4,$5) ON CONFLICT (ingredient_id,locale) DO UPDATE SET name=EXCLUDED.name',
+      [req.params.id, 'en', v.translations.en, 'es', v.translations.es]);
+  }
+  // Conversions are append-only with effective dates: never silently mutated.
+  await audit(req.user!.id, 'ingredient', req.params.id as string, 'update');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+router.post('/ingredients/:id/conversions', async (req, res) => {
+  const p = z.object({ from_unit: Unit, to_unit: Unit, factor: z.number().positive().finite() }).safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  const cur = await query('SELECT id FROM ingredients WHERE id=$1', [req.params.id]);
+  if (!cur.rowCount) return fail(req, 'not_found', 404, res);
+  await query('INSERT INTO ingredient_unit_conversions(ingredient_id,from_unit,to_unit,factor) VALUES ($1,$2,$3,$4)',
+    [req.params.id, p.data.from_unit, p.data.to_unit, p.data.factor]);
+  await audit(req.user!.id, 'ingredient', req.params.id as string, 'conversion_add');
+  res.status(201).json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+// ---------- recipes ----------
+const recipeItem = z.object({
+  ingredient_id: z.string().uuid().nullable().optional(),
+  free_text: z.string().max(200).nullable().optional(),
+  quantity: z.number().positive().finite(),
+  unit: Unit,
+  optional: z.boolean().optional(),
+});
+const recipeBody = z.object({
+  slug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/),
+  title_en: z.string().min(2).max(160),
+  title_es: z.string().min(2).max(160),
+  description_en: z.string().max(2000).default(''),
+  description_es: z.string().max(2000).default(''),
+  steps_en: z.array(z.string().min(1).max(2000)).max(40).default([]),
+  steps_es: z.array(z.string().min(1).max(2000)).max(40).default([]),
+  servings: z.number().int().min(1).max(24).default(1),
+  active_minutes: z.number().int().min(0).max(600).nullable().optional(),
+  total_minutes: z.number().int().min(0).max(1440).nullable().optional(),
+  difficulty: z.enum(['easy', 'moderate', 'advanced']).nullable().optional(),
+  items: z.array(recipeItem).max(60).default([]),
+  nutrition: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+
+async function getRevision(revId: string): Promise<Record<string, unknown> | null> {
+  const r = await query('SELECT * FROM recipe_revisions WHERE id=$1', [revId]);
+  return (r.rows[0] as Record<string, unknown> | undefined) ?? null;
+}
+
+export interface ValidationIssue { field: string; message: string }
+export async function validateRevision(revId: string): Promise<{ issues: ValidationIssue[]; allergens: string[] }> {
+  const issues: ValidationIssue[] = [];
+  const rev = await getRevision(revId);
+  if (!rev) return { issues: [{ field: 'revision', message: 'missing' }], allergens: [] };
+  const contents = await query<{ locale: string; title: string; description: string; steps: unknown }>(
+    'SELECT locale,title,description,steps FROM recipe_contents WHERE revision_id=$1', [revId]);
+  const byLoc: Record<string, { title: string; steps: unknown }> = {};
+  for (const c of contents.rows) byLoc[c.locale] = c;
+  for (const loc of ['en', 'es']) {
+    if (!byLoc[loc]?.title?.trim()) issues.push({ field: `title_${loc}`, message: 'required' });
+    if (!Array.isArray(byLoc[loc]?.steps) || (byLoc[loc].steps as unknown[]).length === 0) issues.push({ field: `steps_${loc}`, message: 'required' });
+  }
+  if (!((rev.servings as number) > 0)) issues.push({ field: 'servings', message: 'must be positive' });
+  const items = await query<{ id: string; ingredient_id: string | null; free_text: string | null; quantity: string; unit: string }>(
+    'SELECT id,ingredient_id,free_text,quantity,unit FROM recipe_ingredients WHERE revision_id=$1', [revId]);
+  if (!items.rows.length) issues.push({ field: 'items', message: 'at least one ingredient required' });
+  const allergens = new Set<string>();
+  for (const it of items.rows) {
+    const qty = Number(it.quantity);
+    if (!Number.isFinite(qty) || qty <= 0) issues.push({ field: `item:${it.id}:quantity`, message: 'must be positive' });
+    if (!it.unit?.trim()) issues.push({ field: `item:${it.id}:unit`, message: 'required' });
+    if (it.ingredient_id) {
+      const ing = await query<{ allergen_class: string | null }>('SELECT allergen_class FROM ingredients WHERE id=$1', [it.ingredient_id]);
+      if (!ing.rowCount) issues.push({ field: `item:${it.id}:ingredient`, message: 'unknown ingredient' });
+      else if (ing.rows[0].allergen_class) allergens.add(ing.rows[0].allergen_class as string);
+    } else if (!it.free_text?.trim()) {
+      issues.push({ field: `item:${it.id}`, message: 'ingredient or free text required' });
+    } else {
+      issues.push({ field: `item:${it.id}:free_text`, message: 'resolve to catalog ingredient before publish' });
+    }
+  }
+  return { issues, allergens: [...allergens] };
+}
+
+router.post('/recipes', async (req, res) => {
+  const p = recipeBody.safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  const dup = await query('SELECT id FROM recipes WHERE slug=$1', [p.data.slug]);
+  if (dup.rowCount) return fail(req, 'conflict', 409, res);
+  const v = p.data;
+  const rec = await query<{ id: string }>('INSERT INTO recipes(slug,created_by) VALUES ($1,$2) RETURNING id', [v.slug, req.user!.id]);
+  const recipeId: string = rec.rows[0].id;
+  const rev = await query<{ id: string }>(
+    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition) VALUES ($1,1,$2,$3,$4,$5,$6,$7) RETURNING id',
+    [recipeId, 'draft', v.servings, v.active_minutes ?? null, v.total_minutes ?? null, v.difficulty ?? null, v.nutrition ? JSON.stringify(v.nutrition) : null],
+  );
+  const revId: string = rev.rows[0].id;
+  await query('INSERT INTO recipe_contents(revision_id,locale,title,description,steps) VALUES ($1,$2,$3,$4,$5),($1,$6,$7,$8,$9)',
+    [revId, 'en', v.title_en, v.description_en, JSON.stringify(v.steps_en), 'es', v.title_es, v.description_es, JSON.stringify(v.steps_es)]);
+  for (const it of v.items) {
+    await query('INSERT INTO recipe_ingredients(revision_id,ingredient_id,free_text,quantity,unit,optional) VALUES ($1,$2,$3,$4,$5,$6)',
+      [revId, it.ingredient_id ?? null, it.free_text ?? null, it.quantity, it.unit, it.optional ?? false]);
+  }
+  await audit(req.user!.id, 'recipe', recipeId, 'create_draft');
+  res.status(201).json({ data: { id: recipeId, revision_id: revId }, error: null, request_id: req.id });
+});
+
+router.get('/recipes', async (req, res) => {
+  const status = typeof req.query.status === 'string' ? req.query.status : null;
+  const q = typeof req.query.q === 'string' ? `%${req.query.q.toLowerCase()}%` : null;
+  let sql = `SELECT r.id,r.slug,rv.id AS revision_id,rv.revision,rv.status,rv.servings,c.title,c.locale
+    FROM recipes r JOIN recipe_revisions rv ON rv.recipe_id=r.id
+    LEFT JOIN recipe_contents c ON c.revision_id=rv.id AND c.locale='en'`;
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (status) { params.push(status); where.push(`rv.status=$${params.length}`); }
+  if (q) { params.push(q); where.push(`(LOWER(r.slug) LIKE $${params.length} OR LOWER(c.title) LIKE $${params.length})`); }
+  if (where.length) sql += ' WHERE ' + where.join(' AND ');
+  sql += ' ORDER BY r.created_at DESC LIMIT 100';
+  const r = await query(sql, params);
+  res.json({ data: r.rows, error: null, request_id: req.id });
+});
+
+router.get('/recipes/:id/revisions', async (req, res) => {
+  const r = await query('SELECT id,revision,status,servings,reviewer_id,reviewed_at,created_at FROM recipe_revisions WHERE recipe_id=$1 ORDER BY revision', [req.params.id]);
+  res.json({ data: r.rows, error: null, request_id: req.id });
+});
+
+router.get('/recipes/revisions/:revId', async (req, res) => {
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  const contents = await query('SELECT locale,title,description,steps FROM recipe_contents WHERE revision_id=$1', [req.params.revId]);
+  const items = await query(
+    `SELECT ri.id,ri.ingredient_id,ri.free_text,ri.quantity,ri.unit,ri.optional,i.canonical_name
+     FROM recipe_ingredients ri LEFT JOIN ingredients i ON i.id=ri.ingredient_id WHERE ri.revision_id=$1`,
+    [req.params.revId],
+  );
+  const { issues, allergens } = await validateRevision(req.params.revId);
+  res.json({ data: { revision: rev, contents: contents.rows, items: items.rows, validation: { issues, allergens } }, error: null, request_id: req.id });
+});
+
+router.put('/recipes/revisions/:revId', async (req, res) => {
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  if (!['draft', 'changes_requested'].includes(rev.status as string)) return fail(req, 'conflict', 409, res);
+  const p = recipeBody.omit({ slug: true }).partial().safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  const v = p.data;
+  await query('UPDATE recipe_revisions SET servings=COALESCE($1,servings),active_minutes=COALESCE($2,active_minutes),total_minutes=COALESCE($3,total_minutes),difficulty=COALESCE($4,difficulty),nutrition=COALESCE($5,nutrition) WHERE id=$6',
+    [v.servings ?? null, v.active_minutes ?? null, v.total_minutes ?? null, v.difficulty ?? null, v.nutrition ? JSON.stringify(v.nutrition) : null, req.params.revId]);
+  for (const loc of ['en', 'es'] as const) {
+    const title = loc === 'en' ? v.title_en : v.title_es;
+    const desc = loc === 'en' ? v.description_en : v.description_es;
+    const steps = loc === 'en' ? v.steps_en : v.steps_es;
+    if (title !== undefined || desc !== undefined || steps !== undefined) {
+      await query(`INSERT INTO recipe_contents(revision_id,locale,title,description,steps) VALUES ($1,$2,$3,$4,$5)
+        ON CONFLICT (revision_id,locale) DO UPDATE SET title=COALESCE(EXCLUDED.title,recipe_contents.title),description=COALESCE(EXCLUDED.description,recipe_contents.description),steps=CASE WHEN EXCLUDED.steps IS NULL THEN recipe_contents.steps ELSE EXCLUDED.steps END`,
+        [req.params.revId, loc, title ?? '', desc ?? '', steps ? JSON.stringify(steps) : null]);
+    }
+  }
+  if (v.items) {
+    await query('DELETE FROM recipe_ingredients WHERE revision_id=$1', [req.params.revId]);
+    for (const it of v.items) {
+      await query('INSERT INTO recipe_ingredients(revision_id,ingredient_id,free_text,quantity,unit,optional) VALUES ($1,$2,$3,$4,$5,$6)',
+        [req.params.revId, it.ingredient_id ?? null, it.free_text ?? null, it.quantity, it.unit, it.optional ?? false]);
+    }
+  }
+  await audit(req.user!.id, 'recipe_revision', req.params.revId, 'update_draft');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+router.post('/recipes/revisions/:revId/submit', async (req, res) => {
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  if (!['draft', 'changes_requested'].includes(rev.status as string)) return fail(req, 'conflict', 409, res);
+  await query("UPDATE recipe_revisions SET status='ready_for_review' WHERE id=$1", [req.params.revId]);
+  await audit(req.user!.id, 'recipe_revision', req.params.revId, 'submit_review');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+router.post('/recipes/revisions/:revId/approve', async (req, res) => {
+  if (!req.user!.roles.includes('dietitian') && !req.user!.roles.includes('administrator')) return fail(req, 'forbidden', 403, res);
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  if (!['draft', 'ready_for_review'].includes(rev.status as string)) return fail(req, 'conflict', 409, res);
+  const p = z.object({ allergens_reviewed: z.literal(true), verify_nutrition: z.boolean().optional() }).safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  const { issues, allergens } = await validateRevision(req.params.revId);
+  if (issues.length) {
+    res.status(422).json({ data: { issues, allergens }, error: { code: 'invalid_input', message: msg('invalid_input', req.locale) }, request_id: req.id });
+    return;
+  }
+  if (p.data.verify_nutrition) {
+    const nut = rev.nutrition as { provenance?: unknown } | null;
+    if (!nut || !nut.provenance) return fail(req, 'invalid_input', 422, res);
+    await query('UPDATE recipe_revisions SET nutrition_verified=TRUE WHERE id=$1', [req.params.revId]);
+  }
+  await query('UPDATE recipe_revisions SET status=$1,reviewer_id=$2,reviewed_at=now() WHERE id=$3', ['approved', req.user!.id, req.params.revId]);
+  await audit(req.user!.id, 'recipe_revision', req.params.revId, `approve allergens=${allergens.join('|') || 'none'}`);
+  res.json({ data: { ok: true, allergens }, error: null, request_id: req.id });
+});
+
+router.post('/recipes/revisions/:revId/publish', async (req, res) => {
+  if (!req.user!.roles.includes('dietitian') && !req.user!.roles.includes('administrator')) return fail(req, 'forbidden', 403, res);
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  if (rev.status !== 'approved') return fail(req, 'conflict', 409, res);
+  await query("UPDATE recipe_revisions SET status='published' WHERE id=$1", [req.params.revId]);
+  await audit(req.user!.id, 'recipe_revision', req.params.revId, 'publish');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+router.post('/recipes/:id/revisions', async (req, res) => {
+  const latest = await query<{ id: string; revision: number }>('SELECT id,revision FROM recipe_revisions WHERE recipe_id=$1 ORDER BY revision DESC LIMIT 1', [req.params.id]);
+  if (!latest.rowCount) return fail(req, 'not_found', 404, res);
+  const src = latest.rows[0];
+  const rev = await query<{ id: string }>(
+    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition) SELECT recipe_id,$1,$2,servings,active_minutes,total_minutes,difficulty,nutrition FROM recipe_revisions WHERE id=$3 RETURNING id',
+    [src.revision + 1, 'draft', src.id],
+  );
+  const newId: string = rev.rows[0].id;
+  await query('INSERT INTO recipe_contents(revision_id,locale,title,description,steps) SELECT $1,locale,title,description,steps FROM recipe_contents WHERE revision_id=$2', [newId, src.id]);
+  await query('INSERT INTO recipe_ingredients(revision_id,ingredient_id,free_text,quantity,unit,optional) SELECT $1,ingredient_id,free_text,quantity,unit,optional FROM recipe_ingredients WHERE revision_id=$2', [newId, src.id]);
+  await audit(req.user!.id, 'recipe', req.params.id, 'new_revision');
+  res.status(201).json({ data: { revision_id: newId, revision: src.revision + 1 }, error: null, request_id: req.id });
+});
+
+export default router;

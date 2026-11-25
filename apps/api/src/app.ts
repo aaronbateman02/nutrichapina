@@ -6,6 +6,8 @@ import { pickLocale, msg } from './i18n.js';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import staffRoutes from './routes/staff.js';
+import catalogRoutes from './routes/catalog.js';
+import programRoutes from './routes/programs.js';
 import debugRoutes from './routes/debug.js';
 
 declare global {
@@ -57,6 +59,8 @@ export function buildApp(): express.Express {
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/me', meRoutes);
   app.use('/api/v1/staff', staffRoutes);
+  app.use('/api/v1/staff', catalogRoutes);
+  app.use('/api/v1/staff', programRoutes);
   if (process.env.ALLOW_DEBUG_OUTBOX === 'true') app.use('/api/v1/_debug', debugRoutes);
 
   app.use('/api', (req, res) => {
