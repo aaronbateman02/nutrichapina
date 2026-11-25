@@ -36,6 +36,15 @@ Unverified-login gating, replay/single-use, reset, and bilingual errors covered 
 - Initial wiring bug found by this test (TDZ on `ui` init blanked the page): fixed in 04513e8, re-verified green.
 - Owner walkthrough (2026-11-25): signed into staging `/manage` as administrator, created a real staging customer through the UI; verified persisted via API (`bateman_aaron@hotmail.com` present in staff list with profile + household rows). Note: owner used a real email for their own test record; staging holds no other real customer data.
 
+## M1 closeout (2026-11-25, staging only)
+- Restore proof: decrypted off-instance `.enc` backup, `diff -r` identical to live, built throwaway image from restored files, served isolated on :8099 (landing + dashboard 200), then destroyed image/container/temp files.
+- Secrets: two transient exposures in local shell transcripts during env-file creation; rotated immediately (fresh Postgres volume + new JWT), old values never used by any service; current creds live only in root-owned host files; repo + server scans clean; backup passphrase owner-held, gitignored.
+- CSRF: same-origin check on mutating `/api` (T10); cookies httpOnly/Secure/SameSite=Lax; no cross-origin API access.
+- MFA: TOTP enroll/verify/require/disable live (T9); enforcement flag per user; staff MFA required before any production health data (none exists).
+- Staging data: `docs/STAGING_DATA_POLICY.md` (fictional-only, no staging backups, reset procedure documented).
+- Canonical console: `/manage`; staging `/admin` → 301 `/manage/`; `/admin` shell files retained in image but unreachable.
+- Prod isolation: prod container/files/nginx untouched (verified: no chip/wiring strings in prod image, prod `/` 200, uptime undisturbed).
+
 ## Limitations / deferred
 - Full browser click-flow (register → dashboard chip visible) not executed here: no browser automation in this environment; chip verified served + API verified; recommend manual staging walkthrough.
 - Support role ungranted; dietitian assigned-scope only; MFA enrollment endpoint deferred to M1-hardening (type + flag ready).
