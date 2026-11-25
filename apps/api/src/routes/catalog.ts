@@ -360,4 +360,143 @@ router.post('/recipes/revisions/:revId/images', async (req, res) => {
   res.status(201).json({ data: { ok: true }, error: null, request_id: req.id });
 });
 
+// M2 closeout: explicit validate + deterministic preview (no LLM arithmetic).
+// Validate mirrors the same rules approve() enforces, so the editor can show
+// fix-before-approval without attempting a state transition.
+router.post('/recipes/revisions/:revId/validate', async (req, res) => {
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  const { issues, allergens } = await validateRevision(req.params.revId);
+  res.json({ data: { issues, allergens, valid: issues.length === 0 }, error: null, request_id: req.id });
+});
+
+// Preview scales ingredient quantities deterministically: qty_per_serving =
+// base_qty / base_servings, scaled = qty_per_serving * requested_servings.
+// Rounding only for display; server never invents nutrition figures.
+router.get('/recipes/revisions/:revId/preview', async (req, res) => {
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  const locale = req.query.locale === 'es' ? 'es' : 'en';
+  const servingsReq = Number(req.query.servings ?? (rev as { servings: number }).servings);
+  if (!Number.isFinite(servingsReq) || servingsReq <= 0 || servingsReq > 24) return fail(req, 'invalid_input', 422, res);
+  const baseServings = Number((rev as { servings: number }).servings) || 1;
+  const contents = await query('SELECT locale,title,description,steps FROM recipe_contents WHERE revision_id=$1', [req.params.revId]);
+  const items = await query(
+    `SELECT ri.quantity,ri.unit,ri.optional,i.canonical_name,t.name
+     FROM recipe_ingredients ri LEFT JOIN ingredients i ON i.id=ri.ingredient_id
+     LEFT JOIN ingredient_translations t ON t.ingredient_id=ri.ingredient_id AND t.locale=$2
+     WHERE ri.revision_id=$1`,
+    [req.params.revId, locale],
+  );
+  const factor = servingsReq / baseServings;
+  const scaled = items.rows.map((it) => {
+    const r = it as unknown as { quantity: string; unit: string; optional: boolean; canonical_name: string | null; name: string | null };
+    const base = Number(r.quantity);
+    return { ...r, base_quantity: base, scaled_quantity: Math.round(base * factor * 100) / 100, servings: servingsReq, base_servings: baseServings };
+  });
+  res.json({ data: { revision: rev, locale, servings: servingsReq, base_servings: baseServings, contents: contents.rows, items: scaled }, error: null, request_id: req.id });
+});
+
+// M2 closeout: reviewer returns a submitted draft for corrections.
+// ready_for_review -> changes_requested. Published/approved history untouched.
+router.post('/recipes/revisions/:revId/request-changes', async (req, res) => {
+  if (!req.user!.roles.includes('dietitian') && !req.user!.roles.includes('administrator')) return fail(req, 'forbidden', 403, res);
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  if (rev.status !== 'ready_for_review') return fail(req, 'conflict', 409, res);
+  const p = z.object({ note: z.string().max(1000).default('') }).safeParse(req.body ?? {});
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  await query("UPDATE recipe_revisions SET status='changes_requested' WHERE id=$1", [req.params.revId]);
+  await audit(req.user!.id, 'recipe_revision', req.params.revId, `request_changes ${p.data.note}`.slice(0, 200));
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+// M2 closeout: soft-archive an approved/published revision. Historical plan
+// views keep resolving the archived revision id; it just stops being assignable
+// for new slots (slots require status='published').
+router.post('/recipes/revisions/:revId/archive', async (req, res) => {
+  if (!req.user!.roles.includes('dietitian') && !req.user!.roles.includes('administrator')) return fail(req, 'forbidden', 403, res);
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  if (!['approved', 'published'].includes(rev.status as string)) return fail(req, 'conflict', 409, res);
+  await query("UPDATE recipe_revisions SET status='archived' WHERE id=$1", [req.params.revId]);
+  await audit(req.user!.id, 'recipe_revision', req.params.revId, 'archive');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+// M2 closeout: duplicate a recipe into a brand-new draft (new slug required).
+// Copies the latest revision's contents + ingredient lines verbatim.
+router.post('/recipes/:id/duplicate', async (req, res) => {
+  const p = z.object({ slug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/) }).safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  const src = await query<{ id: string }>('SELECT id FROM recipes WHERE id=$1', [req.params.id]);
+  if (!src.rowCount) return fail(req, 'not_found', 404, res);
+  const dup = await query('SELECT id FROM recipes WHERE slug=$1', [p.data.slug]);
+  if (dup.rowCount) return fail(req, 'conflict', 409, res);
+  const latest = await query<{ id: string }>('SELECT id FROM recipe_revisions WHERE recipe_id=$1 ORDER BY revision DESC LIMIT 1', [req.params.id]);
+  if (!latest.rowCount) return fail(req, 'not_found', 404, res);
+  const rec = await query<{ id: string }>('INSERT INTO recipes(slug,created_by) VALUES ($1,$2) RETURNING id', [p.data.slug, req.user!.id]);
+  const newRecipeId: string = rec.rows[0].id;
+  const rev = await query<{ id: string }>(
+    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition) SELECT $1,1,$2,servings,active_minutes,total_minutes,difficulty,nutrition FROM recipe_revisions WHERE id=$3 RETURNING id',
+    [newRecipeId, 'draft', latest.rows[0].id],
+  );
+  const newRevId: string = rev.rows[0].id;
+  await query('INSERT INTO recipe_contents(revision_id,locale,title,description,steps) SELECT $1,locale,title,description,steps FROM recipe_contents WHERE revision_id=$2', [newRevId, latest.rows[0].id]);
+  await query('INSERT INTO recipe_ingredients(revision_id,ingredient_id,free_text,quantity,unit,optional) SELECT $1,ingredient_id,free_text,quantity,unit,optional FROM recipe_ingredients WHERE revision_id=$2', [newRevId, latest.rows[0].id]);
+  await audit(req.user!.id, 'recipe', newRecipeId, `duplicate_of ${req.params.id}`);
+  res.status(201).json({ data: { id: newRecipeId, revision_id: newRevId }, error: null, request_id: req.id });
+});
+
+// M2 closeout: approved substitutions (table 006 existed with no API).
+// Only dietitian/administrator writes; swaps are per-recipe ingredient pairs
+// with explicit unit/weight rules + constraints. Customer swap enforcement
+// arrives with M4; this records the reviewed allowance.
+const subBody = z.object({
+  ingredient_id: z.string().uuid(),
+  sub_ingredient_id: z.string().uuid(),
+  rules: z.record(z.string(), z.unknown()).default({}),
+});
+
+router.get('/recipes/:id/substitutions', async (req, res) => {
+  const src = await query('SELECT id FROM recipes WHERE id=$1', [req.params.id]);
+  if (!src.rowCount) return fail(req, 'not_found', 404, res);
+  const r = await query(
+    `SELECT s.id,s.ingredient_id,s.sub_ingredient_id,s.rules,i1.canonical_name AS ingredient,i2.canonical_name AS substitute
+     FROM recipe_approved_substitutions s
+     JOIN ingredients i1 ON i1.id=s.ingredient_id
+     JOIN ingredients i2 ON i2.id=s.sub_ingredient_id
+     WHERE s.recipe_id=$1 ORDER BY s.created_at`, [req.params.id]);
+  res.json({ data: r.rows, error: null, request_id: req.id });
+});
+
+router.post('/recipes/:id/substitutions', async (req, res) => {
+  const src = await query('SELECT id FROM recipes WHERE id=$1', [req.params.id]);
+  if (!src.rowCount) return fail(req, 'not_found', 404, res);
+  const p = subBody.safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  if (p.data.ingredient_id === p.data.sub_ingredient_id) return fail(req, 'invalid_input', 422, res);
+  for (const id of [p.data.ingredient_id, p.data.sub_ingredient_id]) {
+    const ing = await query('SELECT id FROM ingredients WHERE id=$1', [id]);
+    if (!ing.rowCount) return fail(req, 'invalid_input', 422, res);
+  }
+  try {
+    const r = await query<{ id: string }>(
+      'INSERT INTO recipe_approved_substitutions(recipe_id,ingredient_id,sub_ingredient_id,rules,created_by) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+      [req.params.id, p.data.ingredient_id, p.data.sub_ingredient_id, JSON.stringify(p.data.rules), req.user!.id]);
+    await audit(req.user!.id, 'recipe', req.params.id, `substitution_add ${r.rows[0].id}`);
+    res.status(201).json({ data: { id: r.rows[0].id }, error: null, request_id: req.id });
+  } catch {
+    return fail(req, 'conflict', 409, res);
+  }
+});
+
+router.delete('/substitutions/:subId', async (req, res) => {
+  const cur = await query('SELECT id FROM recipe_approved_substitutions WHERE id=$1', [req.params.subId]);
+  if (!cur.rowCount) return fail(req, 'not_found', 404, res);
+  await query('DELETE FROM recipe_approved_substitutions WHERE id=$1', [req.params.subId]);
+  await audit(req.user!.id, 'substitution', req.params.subId, 'remove');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
 export default router;

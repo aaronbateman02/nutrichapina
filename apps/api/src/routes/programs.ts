@@ -142,6 +142,33 @@ router.post('/programs/versions/:vid/publish', async (req, res) => {
   res.json({ data: { ok: true }, error: null, request_id: req.id });
 });
 
+// M2 closeout: reviewer returns a submitted program for corrections.
+// awaiting_professional_review -> changes_requested. Slots stay intact so the
+// author can fix and resubmit without rebuilding the 7/14/21/28-day grid.
+router.post('/programs/versions/:vid/request-changes', async (req, res) => {
+  if (!req.user!.roles.includes('dietitian') && !req.user!.roles.includes('administrator')) return fail(req, 'forbidden', 403, res);
+  const v = await query<{ status: string }>('SELECT status FROM program_versions WHERE id=$1', [req.params.vid]);
+  if (!v.rowCount) return fail(req, 'not_found', 404, res);
+  if (v.rows[0].status !== 'awaiting_professional_review') return fail(req, 'conflict', 409, res);
+  const p = z.object({ note: z.string().max(1000).default('') }).safeParse(req.body ?? {});
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  await query("UPDATE program_versions SET status='changes_requested' WHERE id=$1", [req.params.vid]);
+  await audit(req.user!.id, 'program_version', req.params.vid, `request_changes ${p.data.note}`.slice(0, 200));
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+// M2 closeout: archive an approved/published program version. Assigned client
+// plans snapshot meals at assign time, so archiving never rewrites history.
+router.post('/programs/versions/:vid/archive', async (req, res) => {
+  if (!req.user!.roles.includes('dietitian') && !req.user!.roles.includes('administrator')) return fail(req, 'forbidden', 403, res);
+  const v = await query<{ status: string }>('SELECT status FROM program_versions WHERE id=$1', [req.params.vid]);
+  if (!v.rowCount) return fail(req, 'not_found', 404, res);
+  if (!['approved', 'published'].includes(v.rows[0].status)) return fail(req, 'conflict', 409, res);
+  await query("UPDATE program_versions SET status='archived' WHERE id=$1", [req.params.vid]);
+  await audit(req.user!.id, 'program_version', req.params.vid, 'archive');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
 router.post('/plans/assign', async (req, res) => {
   const p = z.object({ client_id: z.string().uuid(), program_version_id: z.string().uuid() }).safeParse(req.body);
   if (!p.success) return fail(req, 'invalid_input', 422, res);

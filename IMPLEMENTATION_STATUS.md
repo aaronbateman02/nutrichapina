@@ -7,7 +7,7 @@ Live production: `https://nutrichapina.com/` on AWS EC2 `i-0bc615a44196ecb51` (7
 |---|---|---|
 | M0 audit, staging, preservation | DONE 2026-11-25 | Repo created + pushed; live snapshot vendored; backup tarball on host; `staging.nutrichapina.com` live (own container `:staging`, own network, own cert to 2027-02-23); route inventory + ADR-001 in docs |
 | M1 auth, roles, schema | DONE (staging) 2026-11-25 | API + Postgres + migrations + 8/8 tests + staging wiring; evidence `docs/M1_EVIDENCE.md`; no prod behavior change |
-| M2 recipe library + menu publishing | NOT STARTED | First draft fixture: `recipes/drafts/raspberry-banana-yogurt-parfait.md` (unreviewed) |
+| M2 recipe library + menu publishing | DONE (staging) 2026-11-25 | API + migrations 004–008 + T11–T15; closeout adds validate/preview/request-changes/archive/duplicate/substitutions; evidence `docs/M2_EVIDENCE.md`; no prod behavior change |
 | M3 Stripe checkout + entitlements | NOT STARTED | Blocked on D02, D03, D07, D11 + Stripe test keys |
 | M4 real customer journey | NOT STARTED | — |
 | M5 booking + credits | NOT STARTED | Blocked on D04–D06, D13 |

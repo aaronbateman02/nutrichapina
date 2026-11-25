@@ -279,6 +279,72 @@ describe('M2 recipe library + menu acceptance', () => {
     expect(det.body.data.images.length).toBe(1);
   });
 
+  it('T16 closeout: validate/preview/request-changes/archive/duplicate/substitutions', async () => {
+    const diet = await loginAs('m2diet@example.com', 'diet-pass-123');
+    const sup = await loginAs('m2support@example.com', 'support-pass-123');
+    // isolated recipe so T14's published rev1 is untouched
+    const created = await diet.post('/api/v1/staff/recipes').send({
+      slug: 'm2-closeout', title_en: 'Closeout', title_es: 'Cierre',
+      description_en: 'd', description_es: 'd', steps_en: ['Cook.'], steps_es: ['Cocinar.'],
+      servings: 4, items: [{ ingredient_id: ingChicken, quantity: 500, unit: 'g' }],
+    });
+    expect(created.status).toBe(201);
+    const recipeId = created.body.data.id as string;
+    const rev = created.body.data.revision_id as string;
+    // explicit validate: clean draft validates
+    const v = await diet.post(`/api/v1/staff/recipes/revisions/${rev}/validate`).send({});
+    expect(v.status).toBe(200);
+    expect(v.body.data.valid).toBe(true);
+    // deterministic preview: 500g @ 4 servings -> 125g @ 1, 250g @ 2
+    const p1 = await diet.get(`/api/v1/staff/recipes/revisions/${rev}/preview?locale=en&servings=1`);
+    expect(p1.status).toBe(200);
+    expect(p1.body.data.items[0].scaled_quantity).toBe(125);
+    const p2 = await diet.get(`/api/v1/staff/recipes/revisions/${rev}/preview?locale=es&servings=2`);
+    expect(p2.status).toBe(200);
+    expect(p2.body.data.items[0].scaled_quantity).toBe(250);
+    expect(p2.body.data.locale).toBe('es');
+    const badPrev = await diet.get(`/api/v1/staff/recipes/revisions/${rev}/preview?servings=0`);
+    expect(badPrev.status).toBe(422);
+    // request-changes only from ready_for_review
+    await diet.post(`/api/v1/staff/recipes/revisions/${rev}/submit`).send({});
+    const rcDenied = await sup.post(`/api/v1/staff/recipes/revisions/${rev}/request-changes`).send({ note: 'x' });
+    expect(rcDenied.status).toBe(403);
+    const rc = await diet.post(`/api/v1/staff/recipes/revisions/${rev}/request-changes`).send({ note: 'Fix step.' });
+    expect(rc.status).toBe(200);
+    const det = await diet.get(`/api/v1/staff/recipes/revisions/${rev}`);
+    expect(det.body.data.revision.status).toBe('changes_requested');
+    // changes_requested draft still editable, then approve + publish + archive
+    const edit = await diet.put(`/api/v1/staff/recipes/revisions/${rev}`).send({ servings: 4 });
+    expect(edit.status).toBe(200);
+    expect((await diet.post(`/api/v1/staff/recipes/revisions/${rev}/approve`).send({ allergens_reviewed: true })).status).toBe(200);
+    expect((await diet.post(`/api/v1/staff/recipes/revisions/${rev}/publish`).send({})).status).toBe(200);
+    const arch = await diet.post(`/api/v1/staff/recipes/revisions/${rev}/archive`).send({});
+    expect(arch.status).toBe(200);
+    // duplicate creates a new draft recipe
+    const dup = await diet.post(`/api/v1/staff/recipes/${recipeId}/duplicate`).send({ slug: 'm2-closeout-copy' });
+    expect(dup.status).toBe(201);
+    const dupBad = await diet.post(`/api/v1/staff/recipes/${recipeId}/duplicate`).send({ slug: 'm2-closeout-copy' });
+    expect(dupBad.status).toBe(409);
+    // approved substitutions: distinct existing ingredients only
+    const subBad = await diet.post(`/api/v1/staff/recipes/${recipeId}/substitutions`).send({ ingredient_id: ingChicken, sub_ingredient_id: ingChicken, rules: {} });
+    expect(subBad.status).toBe(422);
+    const sub = await diet.post(`/api/v1/staff/recipes/${recipeId}/substitutions`).send({ ingredient_id: ingChicken, sub_ingredient_id: ingRice, rules: { ratio: '1:1' } });
+    expect(sub.status).toBe(201);
+    const subs = await diet.get(`/api/v1/staff/recipes/${recipeId}/substitutions`);
+    expect(subs.status).toBe(200);
+    expect((subs.body.data as unknown[]).length).toBe(1);
+    const del = await diet.delete(`/api/v1/staff/substitutions/${sub.body.data.id as string}`).send();
+    expect(del.status).toBe(200);
+    // program request-changes + archive on an isolated program
+    const admin = await loginAs('m2admin@example.com', 'admin-pass-123');
+    const prog = await admin.post('/api/v1/staff/programs').send({ name: 'M2 closeout program' });
+    const vid = prog.body.data.version_id as string;
+    const rcProgEarly = await admin.post(`/api/v1/staff/programs/versions/${vid}/request-changes`).send({});
+    expect(rcProgEarly.status).toBe(409);
+    const archEarly = await admin.post(`/api/v1/staff/programs/versions/${vid}/archive`).send({});
+    expect(archEarly.status).toBe(409);
+  });
+
   async function recipeIdOf(slug: string): Promise<string> {
     const r = await pool.query<{ id: string }>('SELECT id FROM recipes WHERE slug=$1', [slug]);
     return r.rows[0].id;
