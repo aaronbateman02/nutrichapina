@@ -216,10 +216,13 @@ router.put('/recipes/revisions/:revId', async (req, res) => {
     const title = loc === 'en' ? v.title_en : v.title_es;
     const desc = loc === 'en' ? v.description_en : v.description_es;
     const steps = loc === 'en' ? v.steps_en : v.steps_es;
-    if (title !== undefined || desc !== undefined || steps !== undefined) {
-      await query(`INSERT INTO recipe_contents(revision_id,locale,title,description,steps) VALUES ($1,$2,$3,$4,$5)
-        ON CONFLICT (revision_id,locale) DO UPDATE SET title=COALESCE(EXCLUDED.title,recipe_contents.title),description=COALESCE(EXCLUDED.description,recipe_contents.description),steps=CASE WHEN EXCLUDED.steps IS NULL THEN recipe_contents.steps ELSE EXCLUDED.steps END`,
-        [req.params.revId, loc, title ?? '', desc ?? '', steps ? JSON.stringify(steps) : null]);
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    if (title !== undefined) { vals.push(title); sets.push(`title=$${vals.length}`); }
+    if (desc !== undefined) { vals.push(desc); sets.push(`description=$${vals.length}`); }
+    if (steps !== undefined) { vals.push(JSON.stringify(steps)); sets.push(`steps=$${vals.length}`); }
+    if (sets.length) {
+      await query(`UPDATE recipe_contents SET ${sets.join(', ')} WHERE revision_id=$${vals.length + 1} AND locale=$${vals.length + 2}`, [...vals, req.params.revId, loc]);
     }
   }
   if (v.items) {
