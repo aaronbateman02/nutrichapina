@@ -325,7 +325,7 @@ router.post('/uploads', async (req, res) => {
   const p = z.object({
     filename: z.string().min(1).max(120),
     mime: z.string().min(1).max(64),
-    data_base64: z.string().min(100).max(4_000_000),
+    data_base64: z.string().min(60).max(4_000_000),
   }).safeParse(req.body);
   if (!p.success) return fail(req, 'invalid_input', 422, res);
   const ext = ALLOWED_UPLOADS[p.data.mime];
