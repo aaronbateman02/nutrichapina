@@ -203,11 +203,26 @@ router.get('/recipes/revisions/:revId', async (req, res) => {
   res.json({ data: { revision: rev, contents: contents.rows, items: items.rows, validation: { issues, allergens } }, error: null, request_id: req.id });
 });
 
+const recipePatch = z.object({
+  title_en: z.string().min(2).max(160).optional(),
+  title_es: z.string().min(2).max(160).optional(),
+  description_en: z.string().max(2000).optional(),
+  description_es: z.string().max(2000).optional(),
+  steps_en: z.array(z.string().min(1).max(2000)).max(40).optional(),
+  steps_es: z.array(z.string().min(1).max(2000)).max(40).optional(),
+  servings: z.number().int().min(1).max(24).optional(),
+  active_minutes: z.number().int().min(0).max(600).nullable().optional(),
+  total_minutes: z.number().int().min(0).max(1440).nullable().optional(),
+  difficulty: z.enum(['easy', 'moderate', 'advanced']).nullable().optional(),
+  items: z.array(recipeItem).max(60).optional(),
+  nutrition: z.record(z.string(), z.unknown()).nullable().optional(),
+});
+
 router.put('/recipes/revisions/:revId', async (req, res) => {
   const rev = await getRevision(req.params.revId);
   if (!rev) return fail(req, 'not_found', 404, res);
   if (!['draft', 'changes_requested'].includes(rev.status as string)) return fail(req, 'conflict', 409, res);
-  const p = recipeBody.omit({ slug: true }).partial().safeParse(req.body);
+  const p = recipePatch.safeParse(req.body);
   if (!p.success) return fail(req, 'invalid_input', 422, res);
   const v = p.data;
   await query('UPDATE recipe_revisions SET servings=COALESCE($1,servings),active_minutes=COALESCE($2,active_minutes),total_minutes=COALESCE($3,total_minutes),difficulty=COALESCE($4,difficulty),nutrition=COALESCE($5,nutrition) WHERE id=$6',
