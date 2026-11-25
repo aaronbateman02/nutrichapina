@@ -1,9 +1,11 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pool } from './db.js';
 
-const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations');
+const base = dirname(fileURLToPath(import.meta.url));
+const dir = [join(base, 'migrations'), join(base, '..', 'migrations')]
+  .find((d) => existsSync(d)) ?? join(base, 'migrations');
 
 async function main(): Promise<void> {
   await migrate();
