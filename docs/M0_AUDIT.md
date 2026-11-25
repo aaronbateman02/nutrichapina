@@ -22,6 +22,13 @@
 - `nutrichapina.com` ACTIVE (was clientHold until 2026-11-23 email verification).
 - Apex + www A 77.112.201.29; `staging.nutrichapina.com` pending (M0); `clients` CNAME to github.io (pre-existing).
 
+## Staging (live since 2026-11-25, part of M0)
+- `staging.nutrichapina.com` A 77.112.201.29, container `nutrichapina-staging`
+  (`nutrichapina-site:staging`) on `nutrichapina-staging-net`, 127.0.0.1:8083.
+- Vhost `/etc/nginx/conf.d/staging-nutrichapina.conf` (separate file; production
+  certbot-managed vhost untouched). Own LE cert to 2027-02-23, auto-renew on.
+- Staging serves a copy of production static; no real customer records, ever.
+
 ## Route inventory (must preserve)
 `/`, `/dashboard`, `/dashboard/`, `/dashboard/*.js|css|assets/*`,
 `/manage`, `/manage/`, `/.well-known/acme-challenge/`. No SPA catch-all; new routes must
