@@ -5,6 +5,7 @@ import { pool } from '../src/db.js';
 import { migrate } from '../src/migrate.js';
 import { buildApp } from '../src/app.js';
 import { hashPassword, tokenHash, newToken } from '../src/auth.js';
+import { totpNow } from '../src/mfa.js';
 
 const app = buildApp();
 
@@ -170,5 +171,41 @@ describe('M1 auth + RBAC acceptance', () => {
     expect(es.body.error.message).toMatch(/inválida/i);
     const en = await request(app).post('/api/v1/auth/register?locale=en').send({ email: 'bad', password: 'x' });
     expect(en.body.error.message).toMatch(/invalid/i);
+  });
+
+  it('T9 staff MFA enroll, gate, and remove', async () => {
+    const agent = request.agent(app);
+    await agent.post('/api/v1/auth/login').send({ email: 'diet@example.com', password: 'diet-pass-123' });
+    const setup = await agent.post('/api/v1/auth/mfa/setup');
+    expect(setup.status).toBe(200);
+    expect(setup.body.data.secret).toMatch(/^[A-Z2-7]+$/);
+    expect(setup.body.data.otpauth_url).toContain('otpauth://totp/');
+    const badEnable = await agent.post('/api/v1/auth/mfa/enable').send({ token: '000000' });
+    expect(badEnable.status).toBe(401);
+    const goodEnable = await agent.post('/api/v1/auth/mfa/enable').send({ token: totpNow(setup.body.data.secret) });
+    expect(goodEnable.status).toBe(200);
+    await agent.post('/api/v1/auth/logout');
+    const noToken = await agent.post('/api/v1/auth/login').send({ email: 'diet@example.com', password: 'diet-pass-123' });
+    expect(noToken.status).toBe(403);
+    expect(noToken.body.data).toEqual({ mfa_required: true });
+    const wrongToken = await agent.post('/api/v1/auth/login').send({ email: 'diet@example.com', password: 'diet-pass-123', token: '000000' });
+    expect(wrongToken.status).toBe(403);
+    const withToken = await agent.post('/api/v1/auth/login').send({ email: 'diet@example.com', password: 'diet-pass-123', token: totpNow(setup.body.data.secret) });
+    expect(withToken.status).toBe(200);
+    const disableBad = await agent.post('/api/v1/auth/mfa/disable').send({ password: 'wrong-pass' });
+    expect(disableBad.status).toBe(401);
+    const disable = await agent.post('/api/v1/auth/mfa/disable').send({ password: 'diet-pass-123' });
+    expect(disable.status).toBe(200);
+    const plain = await agent.post('/api/v1/auth/login').send({ email: 'diet@example.com', password: 'diet-pass-123' });
+    expect(plain.status).toBe(200);
+  });
+
+  it('T10 cross-origin mutations blocked, same-origin allowed', async () => {
+    const forged = await request(app).post('/api/v1/auth/register').set('Origin', 'https://evil.example').send({ email: 'x@example.com', password: 'longenoughpassword' });
+    expect(forged.status).toBe(403);
+    const ok = await request(app).post('/api/v1/auth/register').send({ email: 'csrf-ok@example.com', password: 'longenoughpassword' });
+    expect([201, 409]).toContain(ok.status);
+    const getOk = await request(app).get('/api/v1/me').set('Origin', 'https://evil.example');
+    expect(getOk.status).toBe(401);
   });
 });

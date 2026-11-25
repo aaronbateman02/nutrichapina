@@ -26,6 +26,29 @@ export function buildApp(): express.Express {
   });
   app.use(attachUser);
 
+  // CSRF: mutations require same-origin. Browsers always send Origin/Referer on
+  // fetch POST; missing headers (curl, tests, same-origin navigations) are allowed.
+  // SameSite=Lax cookies + no cross-origin API access complete the posture.
+  app.use('/api', (req, res, next) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+    const host = req.headers.host;
+    const sameSite = (v: string | undefined): boolean => {
+      if (!v) return true;
+      try {
+        return new URL(v).host === host;
+      } catch {
+        return false;
+      }
+    };
+    const origin = req.headers.origin as string | undefined;
+    const referer = req.headers.referer as string | undefined;
+    if (!sameSite(origin) || (!origin && !sameSite(referer))) {
+      res.status(403).json({ data: null, error: { code: 'forbidden', message: msg('forbidden', req.locale) }, request_id: req.id });
+      return;
+    }
+    next();
+  });
+
   app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
   // Admin shell (staging only; prod nginx never routes /admin or /api here).

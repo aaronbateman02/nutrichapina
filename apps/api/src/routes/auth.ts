@@ -5,7 +5,8 @@ import { msg } from '../i18n.js';
 import {
   hashPassword, checkPassword, newToken, tokenHash, signAccess,
   setAuthCookies, clearAuthCookies, readCookies, requireAuth, rateLimit, audit,
-} from '../auth.js';
+} from './auth.js';
+import { newSecret, totpVerify, otpauthUrl } from '../mfa.js';
 
 const router = Router();
 const err = (req: { locale: 'en' | 'es'; id: string }, code: string, status: number, res: { status: (n: number) => { json: (b: unknown) => void } }) =>
@@ -61,15 +62,21 @@ router.post('/verify-email', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   if (!rateLimit(`login:${req.ip}`, 20, 600_000)) return err(req, 'locked', 429, res);
-  const p = z.object({ email: Email, password: z.string().min(1).max(128) }).safeParse(req.body);
+  const p = z.object({ email: Email, password: z.string().min(1).max(128), token: z.string().regex(/^\d{6}$/).optional() }).safeParse(req.body);
   if (!p.success) return err(req, 'invalid_input', 422, res);
-  const u = await query<{ id: string; password_hash: string; email_verified_at: string | null; status: string }>(
-    'SELECT id,password_hash,email_verified_at,status FROM users WHERE email=$1', [p.data.email.toLowerCase()],
+  const u = await query<{ id: string; password_hash: string; email_verified_at: string | null; status: string; mfa_secret: string | null; mfa_required: boolean }>(
+    'SELECT id,password_hash,email_verified_at,status,mfa_secret,mfa_required FROM users WHERE email=$1', [p.data.email.toLowerCase()],
   );
   const row = u.rows[0];
   if (!row || !(await checkPassword(p.data.password, row.password_hash))) return err(req, 'bad_credentials', 401, res);
   if (row.status !== 'active' || !row.email_verified_at) {
     return err(req, row.status !== 'active' ? 'forbidden' : 'unverified', row.status !== 'active' ? 403 : 403, res);
+  }
+  if (row.mfa_required) {
+    if (!p.data.token || !row.mfa_secret || !totpVerify(row.mfa_secret, p.data.token)) {
+      res.status(403).json({ data: { mfa_required: true }, error: { code: 'forbidden', message: msg('forbidden', req.locale) }, request_id: (req as unknown as { id: string }).id });
+      return;
+    }
   }
   const roles = (await rolesOf(row.id)) as ('customer' | 'dietitian' | 'administrator' | 'support')[];
   const access = signAccess({ id: row.id, roles });
@@ -119,8 +126,7 @@ router.post('/request-reset', async (req, res) => {
   res.json({ data: { ok: true }, error: null, request_id: (req as unknown as { id: string }).id });
 });
 
-router.post('/reset-password', async (req, res) => {
-  const p = z.object({ token: z.string().min(10), password: Password }).safeParse(req.body);
+router.post('/reset-password', async (req, res) => {  const p = z.object({ token: z.string().min(10), password: Password }).safeParse(req.body);
   if (!p.success) return err(req, 'invalid_input', 422, res);
   const h = tokenHash(p.data.token);
   const t = await query<{ id: string; user_id: string; expires_at: string; used_at: string | null }>(
@@ -133,6 +139,34 @@ router.post('/reset-password', async (req, res) => {
   await query('UPDATE refresh_tokens SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL', [row.user_id]);
   await audit(row.user_id, 'user', row.user_id, 'password_reset');
   res.json({ data: { ok: true }, error: null, request_id: (req as unknown as { id: string }).id });
+});
+
+router.post('/mfa/setup', requireAuth, async (req, res) => {
+  const secret = newSecret();
+  await query('UPDATE users SET mfa_secret=$1, updated_at=now() WHERE id=$2', [secret, req.user!.id]);
+  await audit(req.user!.id, 'user', req.user!.id, 'mfa_setup');
+  const email = (await query<{ email: string }>('SELECT email FROM users WHERE id=$1', [req.user!.id])).rows[0].email;
+  res.json({ data: { secret, otpauth_url: otpauthUrl('NutriChapina', email, secret) }, error: null, request_id: req.id });
+});
+
+router.post('/mfa/enable', requireAuth, async (req, res) => {
+  const p = z.object({ token: z.string().regex(/^\d{6}$/) }).safeParse(req.body);
+  if (!p.success) return err(req, 'invalid_input', 422, res);
+  const row = (await query<{ mfa_secret: string | null }>('SELECT mfa_secret FROM users WHERE id=$1', [req.user!.id])).rows[0];
+  if (!row?.mfa_secret || !totpVerify(row.mfa_secret, p.data.token)) return err(req, 'bad_credentials', 401, res);
+  await query('UPDATE users SET mfa_required=TRUE, updated_at=now() WHERE id=$1', [req.user!.id]);
+  await audit(req.user!.id, 'user', req.user!.id, 'mfa_enable');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
+router.post('/mfa/disable', requireAuth, async (req, res) => {
+  const p = z.object({ password: z.string().min(1).max(128) }).safeParse(req.body);
+  if (!p.success) return err(req, 'invalid_input', 422, res);
+  const row = (await query<{ password_hash: string }>('SELECT password_hash FROM users WHERE id=$1', [req.user!.id])).rows[0];
+  if (!row || !(await checkPassword(p.data.password, row.password_hash))) return err(req, 'bad_credentials', 401, res);
+  await query('UPDATE users SET mfa_secret=NULL, mfa_required=FALSE, updated_at=now() WHERE id=$1', [req.user!.id]);
+  await audit(req.user!.id, 'user', req.user!.id, 'mfa_disable');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
 });
 
 export default router;
