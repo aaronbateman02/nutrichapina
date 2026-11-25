@@ -34,6 +34,7 @@ Unverified-login gating, replay/single-use, reset, and bilingual errors covered 
 - Clients page: exactly the 2 real DB records (Demo Owner, E2E Client One); zero fictional demo clients; honest M4/M5 note.
 - Profile drawer: real fields (email, locale, household, store, cadence, since); program shows "No active program yet" (no invented plan/credits).
 - Initial wiring bug found by this test (TDZ on `ui` init blanked the page): fixed in 04513e8, re-verified green.
+- Owner walkthrough (2026-11-25): signed into staging `/manage` as administrator, created a real staging customer through the UI; verified persisted via API (`bateman_aaron@hotmail.com` present in staff list with profile + household rows). Note: owner used a real email for their own test record; staging holds no other real customer data.
 
 ## Limitations / deferred
 - Full browser click-flow (register → dashboard chip visible) not executed here: no browser automation in this environment; chip verified served + API verified; recommend manual staging walkthrough.
