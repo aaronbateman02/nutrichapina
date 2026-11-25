@@ -100,11 +100,13 @@ router.get('/recipes/:revisionId', async (req, res) => {
     [req.params.revisionId, req.locale],
   );
   const r = rev.rows[0];
+  const images = await query('SELECT path,alt FROM recipe_images WHERE revision_id=$1 ORDER BY sort', [req.params.revisionId]);
   res.json({
     data: {
       id: r.id, servings: r.servings,
       nutrition: r.nutrition_verified ? r.nutrition : null,
       nutrition_verified: r.nutrition_verified,
+      images: images.rows,
       contents: contents.rows, items: items.rows,
     },
     error: null, request_id: req.id,

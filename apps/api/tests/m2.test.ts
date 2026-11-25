@@ -250,6 +250,35 @@ describe('M2 recipe library + menu acceptance', () => {
     expect(crossRec.status).toBe(403);
   });
 
+  it('T15 recipe photo upload validation + link', async () => {
+    const diet = await loginAs('m2diet@example.com', 'diet-pass-123');
+    const png1px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const unauth = await request(app).post('/api/v1/staff/uploads').send({ filename: 'a.png', mime: 'image/png', data_base64: png1px });
+    expect(unauth.status).toBe(401);
+    const cust = await loginAs('m2custA@example.com', 'cust-pass-123');
+    const forbiddenUp = await cust.post('/api/v1/staff/uploads').send({ filename: 'a.png', mime: 'image/png', data_base64: png1px });
+    expect(forbiddenUp.status).toBe(403);
+    const badMime = await diet.post('/api/v1/staff/uploads').send({ filename: 'a.gif', mime: 'image/gif', data_base64: png1px });
+    expect(badMime.status).toBe(422);
+    const badMagic = await diet.post('/api/v1/staff/uploads').send({ filename: 'a.png', mime: 'image/png', data_base64: Buffer.from('not-an-image-at-all-xyz').toString('base64') });
+    expect(badMagic.status).toBe(422);
+    const ok = await diet.post('/api/v1/staff/uploads').send({ filename: 'bowl.png', mime: 'image/png', data_base64: png1px });
+    expect(ok.status).toBe(201);
+    expect(ok.body.data.path).toMatch(/^\/media\/[A-Za-z0-9-]+\.png$/);
+    const created = await diet.post('/api/v1/staff/recipes').send({
+      slug: 'm2-photo-test', title_en: 'Photo T', title_es: 'Foto P',
+      description_en: 'd', description_es: 'd', steps_en: ['x'], steps_es: ['x'],
+      servings: 1, items: [{ ingredient_id: ingChicken, quantity: 10, unit: 'g' }],
+    });
+    const revDraft = created.body.data.revision_id as string;
+    const link = await diet.post(`/api/v1/staff/recipes/revisions/${revDraft}/images`).send({ path: ok.body.data.path, alt: 'Test bowl' });
+    expect(link.status).toBe(201);
+    const badPath = await diet.post(`/api/v1/staff/recipes/revisions/${revDraft}/images`).send({ path: '/etc/passwd', alt: 'x' });
+    expect(badPath.status).toBe(422);
+    const det = await diet.get(`/api/v1/staff/recipes/revisions/${revDraft}`);
+    expect(det.body.data.images.length).toBe(1);
+  });
+
   async function recipeIdOf(slug: string): Promise<string> {
     const r = await pool.query<{ id: string }>('SELECT id FROM recipes WHERE slug=$1', [slug]);
     return r.rows[0].id;

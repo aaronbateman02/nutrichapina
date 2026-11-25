@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { query } from '../db.js';
 import { msg } from '../i18n.js';
 import { requireRole, audit } from '../auth.js';
@@ -200,7 +203,8 @@ router.get('/recipes/revisions/:revId', async (req, res) => {
     [req.params.revId],
   );
   const { issues, allergens } = await validateRevision(req.params.revId);
-  res.json({ data: { revision: rev, contents: contents.rows, items: items.rows, validation: { issues, allergens } }, error: null, request_id: req.id });
+  const images = await query('SELECT path,alt,sort FROM recipe_images WHERE revision_id=$1 ORDER BY sort', [req.params.revId]);
+  res.json({ data: { revision: rev, contents: contents.rows, items: items.rows, images: images.rows, validation: { issues, allergens } }, error: null, request_id: req.id });
 });
 
 const recipePatch = z.object({
@@ -305,6 +309,55 @@ router.post('/recipes/:id/revisions', async (req, res) => {
   await query('INSERT INTO recipe_ingredients(revision_id,ingredient_id,free_text,quantity,unit,optional) SELECT $1,ingredient_id,free_text,quantity,unit,optional FROM recipe_ingredients WHERE revision_id=$2', [newId, src.id]);
   await audit(req.user!.id, 'recipe', req.params.id, 'new_revision');
   res.status(201).json({ data: { revision_id: newId, revision: src.revision + 1 }, error: null, request_id: req.id });
+});
+
+const UPLOAD_DIR = process.env.UPLOAD_DIR ?? '/srv/uploads';
+const ALLOWED_UPLOADS: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+
+function sniffImage(buf: Buffer, mime: string): boolean {
+  if (mime === 'image/png') return buf.length > 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+  if (mime === 'image/jpeg') return buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+  if (mime === 'image/webp') return buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP';
+  return false;
+}
+
+router.post('/uploads', async (req, res) => {
+  const p = z.object({
+    filename: z.string().min(1).max(120),
+    mime: z.string().min(1).max(64),
+    data_base64: z.string().min(100).max(4_000_000),
+  }).safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  const ext = ALLOWED_UPLOADS[p.data.mime];
+  if (!ext) return fail(req, 'invalid_input', 422, res);
+  let buf: Buffer;
+  try {
+    buf = Buffer.from(p.data.data_base64, 'base64');
+  } catch {
+    return fail(req, 'invalid_input', 422, res);
+  }
+  if (buf.length === 0 || buf.length > 2 * 1024 * 1024 || !sniffImage(buf, p.data.mime)) return fail(req, 'invalid_input', 422, res);
+  const name = `${randomUUID()}.${ext}`;
+  try {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    await writeFile(join(UPLOAD_DIR, name), buf);
+  } catch {
+    return fail(req, 'server_error', 500, res);
+  }
+  await audit(req.user!.id, 'upload', name, 'recipe_image');
+  res.status(201).json({ data: { path: `/media/${name}`, bytes: buf.length }, error: null, request_id: req.id });
+});
+
+router.post('/recipes/revisions/:revId/images', async (req, res) => {
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  if (!['draft', 'changes_requested'].includes(rev.status as string)) return fail(req, 'conflict', 409, res);
+  const p = z.object({ path: z.string().regex(/^\/media\/[A-Za-z0-9-]+\.(png|jpg|webp)$/), alt: z.string().max(200).default('') }).safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  await query('INSERT INTO recipe_images(revision_id,path,alt,sort) VALUES ($1,$2,$3,(SELECT COALESCE(MAX(sort),-1)+1 FROM recipe_images WHERE revision_id=$1))',
+    [req.params.revId, p.data.path, p.data.alt]);
+  await audit(req.user!.id, 'recipe_revision', req.params.revId, 'image_add');
+  res.status(201).json({ data: { ok: true }, error: null, request_id: req.id });
 });
 
 export default router;

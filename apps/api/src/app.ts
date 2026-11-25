@@ -55,6 +55,9 @@ export function buildApp(): express.Express {
 
   // Admin shell (staging only; prod nginx never routes /admin or /api here).
   app.use('/admin', express.static('public/admin', { index: 'index.html', extensions: ['html'] }));
+  // Recipe photos uploaded by staff. Approved images are public content;
+  // per-record access control for sensitive media arrives with later modules.
+  app.use('/media', express.static(process.env.UPLOAD_DIR ?? '/srv/uploads', { index: false, maxAge: '7d' }));
 
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/me', meRoutes);
