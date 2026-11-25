@@ -197,7 +197,7 @@
       ${routes.map(([key,ic])=>`<button class="nav-item ${state.route===key?'active':''}" data-route="${key}" ${state.route===key?'aria-current="page"':''}>${icon(ic)} ${t(key)}</button>`).join('')}
       </nav><div class="sidebar-lower"><div class="side-help"><div class="mini">${pick('A little encouragement','Un poco de ánimo')}</div><strong>${t('sideHelpTitle')}</strong><p>${t('sideHelpCopy')}</p><button data-route="consultations">${t('sideHelpLink')} →</button></div>
       <div class="side-footer"><a href="/">← ${t('backWebsite')}</a><div><button data-action="reset">${t('reset')}</button></div></div></div></aside>
-      <main class="main"><header class="topbar"><div class="crumb"><button class="hamburger" data-action="toggle-sidebar" aria-label="${pick('Open menu','Abrir menú')}">${icon('menu')}</button><span>Nutri Chapina</span><span>›</span><b>${t(state.route)}</b></div><div class="top-actions"><span class="demo-pill">${t('demo')}</span><div class="lang" role="group" aria-label="${pick('Language','Idioma')}"><button data-lang="en" aria-pressed="${lang==='en'}" lang="en">EN</button><button data-lang="es" aria-pressed="${lang==='es'}" lang="es">ES</button></div><div class="avatar" aria-label="Sample profile">M</div></div></header><div class="content">`;
+      <main class="main"><header class="topbar"><div class="crumb"><button class="hamburger" data-action="toggle-sidebar" aria-label="${pick('Open menu','Abrir menú')}">${icon('menu')}</button><span>Nutri Chapina</span><span>›</span><b>${t(state.route)}</b></div><div class="top-actions"><span class="demo-pill">${t('demo')}</span>${window.__ncAccount?`<span class="demo-pill">${esc(window.__ncAccount.email)}</span>`:''}<div class="lang" role="group" aria-label="${pick('Language','Idioma')}"><button data-lang="en" aria-pressed="${lang==='en'}" lang="en">EN</button><button data-lang="es" aria-pressed="${lang==='es'}" lang="es">ES</button></div><div class="avatar" aria-label="Sample profile">M</div></div></header><div class="content">`;
   const footer=()=>`<p class="demo-ribbon"><strong>${t('demo')}</strong> · ${t('demoPrivacy')}</p></div></main>`;
   const stat=(label,value,desc,ic)=>`<div class="card stat"><div><div class="label">${label}</div><strong>${value}</strong><div class="meta">${desc}</div></div><div class="stat-icon">${icon(ic)}</div></div>`;
   const overview=()=>{const day=0;return `<section class="welcome"><div class="welcome-copy"><p class="eyebrow">${pick('WELCOME TO YOUR SPACE','BIENVENIDA A TU ESPACIO')}</p><h1>${t('greeting')}</h1><p>${t('greetingCopy')}</p>${btn(t('viewMenu'),'myPlan')}</div><div class="welcome-visual"><img src="assets/hero-balanced-meal.webp" alt="${pick('A balanced bowl with chicken, rice and vegetables','Tazón con pollo, arroz y vegetales')}"><div class="image-note"><strong>${t('imageTitle')}</strong><span>${t('imageSub')}</span></div></div></section>
@@ -315,5 +315,12 @@
   });
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal){modal=null;render();}});
   document.addEventListener('click',e=>{if(e.target?.id==='modal-overlay'){modal=null;render();}});
+  // M1 staging integration (progressive enhancement): if a same-origin API
+  // session exists, show the signed-in account. No API -> pure demo, unchanged.
+  try{
+    fetch('/api/v1/me',{credentials:'same-origin'}).then(r=>{if(!r.ok) return null;return r.json()}).then(j=>{
+      if(j&&j.data&&j.data.user&&j.data.user.email){window.__ncAccount={email:j.data.user.email};render();}
+    }).catch(()=>{});
+  }catch(_){}
   render();
 })();
