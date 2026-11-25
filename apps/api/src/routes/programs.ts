@@ -21,7 +21,7 @@ const Slot = z.object({
 router.post('/programs', async (req, res) => {
   const p = z.object({ name: z.string().min(2).max(120) }).safeParse(req.body);
   if (!p.success) return fail(req, 'invalid_input', 422, res);
-  const t = await query<{ id: string }>('INSERT INTO program_templates(status) VALUES ($1) RETURNING id', ['draft']);
+  const t = await query<{ id: string }>('INSERT INTO program_templates(status,name) VALUES ($1,$2) RETURNING id', ['draft', p.data.name]);
   const v = await query<{ id: string }>('INSERT INTO program_versions(template_id,revision,status,created_by) VALUES ($1,1,$2,$3) RETURNING id',
     [t.rows[0].id, 'draft', req.user!.id]);
   await audit(req.user!.id, 'program', t.rows[0].id, 'create');
@@ -29,7 +29,7 @@ router.post('/programs', async (req, res) => {
 });
 
 router.get('/programs', async (req, res) => {
-  const r = await query(`SELECT t.id, MAX(v.revision) AS revisions,
+  const r = await query(`SELECT t.id, t.name, MAX(v.revision) AS revisions,
     (SELECT status FROM program_versions WHERE template_id=t.id ORDER BY revision DESC LIMIT 1) AS latest_status
     FROM program_templates t LEFT JOIN program_versions v ON v.template_id=t.id GROUP BY t.id ORDER BY t.created_at DESC LIMIT 100`);
   res.json({ data: r.rows, error: null, request_id: req.id });
