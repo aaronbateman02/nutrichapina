@@ -94,7 +94,7 @@
     householdSize:'Dinner servings / household size',budget:'Weekly household grocery budget',prefStore:'Preferred grocery provider',storeWalmart:'Walmart',storeInstacart:'Instacart',storeOther:'Other / not selected',
     cadence:'Grocery delivery rhythm',sharedDinner:'Dinner is a shared household meal',savePrefs:'Save preferences',saved:'Preferences saved locally',prefsNote:'Do not enter sensitive medical information into this demo. A real portal needs secure accounts, protected intake and consent before collecting health details.',
     reviewNutrition:'Ask about personalized guidance',modalSwap:'Choose another meal',modalSwapCopy:'Sample choices in this prototype. Live substitutions will be reviewed against your nutrition plan and household needs.',
-    recipeDetails:'RECIPE DETAILS',openRecipe:'View recipe',openIngredients:'Ingredients & directions',recipeIngredients:'Ingredients',recipeDirections:'How to make it',recipeServing:'For 1 serving',recipeFamily:'For the household',recipeTime:'Estimated time',recipeServings:'Servings',recipeTip:'Sample quantities only. Your live plan will use dietitian-approved amounts. Review allergens and cook foods safely.',recipeOvernight:'Requires overnight chilling',nutTitle:'Estimated nutrition',nutPer:'per serving',nutCal:'Calories',nutPro:'Protein',nutCarb:'Carbohydrates',nutFib:'Fiber',nutNote:'Rough estimates for one serving, not medical advice. Your live plan will use dietitian-approved values.',closeRecipe:'Back to my plan',
+    recipeDetails:'RECIPE DETAILS',openRecipe:'View recipe',openIngredients:'Ingredients & directions',recipeIngredients:'Ingredients',recipeDirections:'How to make it',recipeServing:'For 1 serving',recipeFamily:'For the household',recipeTime:'Estimated time',recipeServings:'Servings',recipeTip:'Sample quantities only. Your live plan will use dietitian-approved amounts. Review allergens and cook foods safely.',recipeOvernight:'Requires overnight chilling',nutTitle:'Estimated nutrition',nutPer:'per serving',nutCal:'Calories',nutPro:'Protein',nutCarb:'Carbohydrates',nutFib:'Fiber',nutVerified:'Verified values',nutUnverified:'Nutrition not yet verified for this recipe',nutNote:'Rough estimates for one serving, not medical advice. Your live plan will use dietitian-approved values.',closeRecipe:'Back to my plan',
     close:'Close',notConnected:'Not connected yet',notConnectedBody:'This is a front-end demo only. The developer must connect this action to the approved service before public launch.',
     bookingSaved:'Demo request saved locally (not sent)',requestRemoved:'Demo request removed',useAnother:'Choose an alternative',dayWord:'Day',unitAbbrev:'pc',introNoCredits:'Free · 0 credits',
     chooseTier:'Demo view',guidedShort:'Guided member',digitalShort:'Digital customer',loading:'Loading your space',noItems:'No items for this period',
@@ -137,7 +137,7 @@
     householdSize:'Porciones para la cena / tamaño del hogar',budget:'Presupuesto semanal de compras del hogar',prefStore:'Supermercado preferido',storeWalmart:'Walmart',storeInstacart:'Instacart',storeOther:'Otro / sin seleccionar',
     cadence:'Frecuencia de entregas',sharedDinner:'La cena es una comida familiar',savePrefs:'Guardar preferencias',saved:'Preferencias guardadas en este dispositivo',prefsNote:'No ingreses datos médicos sensibles en este demo. El portal real necesitará cuentas seguras, consentimiento y formularios protegidos.',
     reviewNutrition:'Consultar sobre orientación personal',modalSwap:'Elige otra comida',modalSwapCopy:'Opciones ilustrativas. En la versión real, los cambios deberán ajustarse al plan nutricional y a las necesidades del hogar.',
-    recipeDetails:'DETALLE DE LA RECETA',openRecipe:'Ver receta',openIngredients:'Ingredientes y preparación',recipeIngredients:'Ingredientes',recipeDirections:'Cómo prepararlo',recipeServing:'Para 1 porción',recipeFamily:'Para toda la familia',recipeTime:'Tiempo estimado',recipeServings:'Porciones',recipeTip:'Las cantidades son ejemplos. Tu plan real tendrá porciones aprobadas por la nutricionista. Revisa los alérgenos y cocina los alimentos de forma segura.',recipeOvernight:'Se deja reposar toda la noche',nutTitle:'Nutrición estimada',nutPer:'por porción',nutCal:'Calorías',nutPro:'Proteína',nutCarb:'Carbohidratos',nutFib:'Fibra',nutNote:'Valores aproximados por porción, no es consejo médico. Tu plan real usará valores aprobados por la nutricionista.',closeRecipe:'Volver a mi menú',
+    recipeDetails:'DETALLE DE LA RECETA',openRecipe:'Ver receta',openIngredients:'Ingredientes y preparación',recipeIngredients:'Ingredientes',recipeDirections:'Cómo prepararlo',recipeServing:'Para 1 porción',recipeFamily:'Para toda la familia',recipeTime:'Tiempo estimado',recipeServings:'Porciones',recipeTip:'Las cantidades son ejemplos. Tu plan real tendrá porciones aprobadas por la nutricionista. Revisa los alérgenos y cocina los alimentos de forma segura.',recipeOvernight:'Se deja reposar toda la noche',nutTitle:'Nutrición estimada',nutPer:'por porción',nutCal:'Calorías',nutPro:'Proteína',nutCarb:'Carbohidratos',nutFib:'Fibra',nutVerified:'Valores verificados',nutUnverified:'Nutrición aún sin verificar para esta receta',nutNote:'Valores aproximados por porción, no es consejo médico. Tu plan real usará valores aprobados por la nutricionista.',closeRecipe:'Volver a mi menú',
     close:'Cerrar',notConnected:'Todavía no está conectado',notConnectedBody:'Este es solo un prototipo visual y funcional. El desarrollador debe conectar esta opción al servicio autorizado antes del lanzamiento.',
     bookingSaved:'Solicitud de prueba guardada (no se envió)',requestRemoved:'Solicitud de prueba eliminada',useAnother:'Elegir alternativa',dayWord:'Día',unitAbbrev:'unid.',introNoCredits:'Gratis · 0 créditos',
     chooseTier:'Vista de prueba',guidedShort:'Con acompañamiento',digitalShort:'Cliente de menú digital',loading:'Cargando tu espacio',noItems:'No hay productos para este período',
@@ -208,13 +208,13 @@
     <div class="next-item"><span class="next-icon">${icon('basket')}</span><div><strong>${t('groceryReady')}</strong><p>${t('groceryReadyDesc')}</p><button class="inline-link" data-route="groceries">${t('reviewList')} →</button></div></div>
     <div class="next-item"><span class="next-icon">${icon('chat')}</span><div><strong>${state.mode==='guided'?t('timeWithDietitian'):t('introCallTitle')}</strong><p>${state.mode==='guided'?t('timeWithDietitianDesc'):t('introCallDesc')}</p><button class="inline-link" data-route="consultations">${state.mode==='guided'?t('requestSession'):t('introCall')} →</button></div></div>
     </div></section></div><div class="note-panel">${icon('heart')} <b>${pick('A real dietitian. A practical approach.','Una nutricionista de verdad. Un enfoque práctico.')}</b> ${pick('This portal is designed to make everyday decisions easier while keeping your relationship with your dietitian at the center.','Este portal busca simplificar las decisiones del día a día, sin perder la cercanía con tu nutricionista.')}</div>`;};
-  const menu=()=>`<div class="page-head"><div><p class="eyebrow">${t('menuEyebrow')}</p><h1>${t('menuTitle')}</h1><p class="sub">${t('menuSub')}</p></div><button class="btn btn-light" data-route="groceries">${icon('basket')} ${t('reviewList')}</button></div>
+  const menu=()=>{if(window.__ncPlan)return serverMenu();return `<div class="page-head"><div><p class="eyebrow">${t('menuEyebrow')}</p><h1>${t('menuTitle')}</h1><p class="sub">${t('menuSub')}</p></div><button class="btn btn-light" data-route="groceries">${icon('basket')} ${t('reviewList')}</button></div>
     <div class="daystrip" role="group" aria-label="${t('thisWeek')}">${DAY_KEYS.map((_,d)=>`<button class="daybtn ${state.day===d?'active':''}" data-action="day" data-day="${d}" aria-pressed="${state.day===d}"><span>${dayName(d)}</span><strong>${d+1}</strong><span class="dot"><span style="width:${doneOfDay(d)/3*100}%"></span></span></button>`).join('')}</div>
     <div class="split"><section class="menu-cards">${SLOT_KEYS.map(slot=>{const id=state.meals[state.day][slot];const r=recipes[id];const isDone=!!state.done[`${state.day}-${slot}`];return `<div class="card menu-card"><button class="meal-figure-button" data-action="view-recipe" data-id="${id}" data-slot="${slot}" aria-label="${t('openRecipe')}: ${esc(recipeName(id))}">${mealFigure(slot,id)}</button><div class="menu-details"><div class="slot-label">${t(slot)}</div><button class="recipe-title-button" data-action="view-recipe" data-id="${id}" data-slot="${slot}"><strong>${esc(recipeName(id))}</strong></button><span class="muted">${r.mins} ${t('recipeMinutes')} · ${slot==='dinner'?state.household:1} ${pick('serving(s)','porción(es)')}</span><button class="recipe-open-link" data-action="view-recipe" data-id="${id}" data-slot="${slot}">${t('openIngredients')} ${icon('arrow')}</button></div><div class="menu-actions"><button class="inline-link" data-action="swap" data-slot="${slot}">${t('swap')} ${icon('refresh')}</button><button class="check-chip ${isDone?'done':''}" data-action="check-meal" data-slot="${slot}">${isDone?icon('check'):icon('plus')} ${isDone?t('markedDone'):t('markDone')}</button></div></div>`;}).join('')}</section>
     <aside class="card card-pad"><p class="eyebrow">${pick('YOUR KITCHEN, YOUR PACE','TU COCINA, A TU RITMO')}</p><h2 class="section-title">${pick('Meals that fit your household.','Comidas para tu hogar.')}</h2><p class="sub" style="margin:14px 0 19px;font-size:13px">${pick('Breakfast and lunch are planned for you. Dinner includes the household servings you set in your preferences.','El desayuno y el almuerzo están pensados para ti. La cena incluye las porciones que indicaste para tu familia.')}</p>
     <span class="badge">${state.household} ${pick('dinner servings','porciones para cena')}</span><div class="muted-divider"></div><p class="small muted">${t('familyDinner')}</p><button class="inline-link" data-route="preferences">${t('preferences')} ${icon('arrow')}</button><div class="muted-divider"></div><p class="tiny muted">${t('menuInfo')}</p></aside></div>`;
   const groupedGrocery=(items)=>{const order=['produce','protein','grains','dairy','pantry'];const labels={produce:'produce',protein:'protein',grains:'grains',dairy:'dairy',pantry:'pantryCat'};return order.map(category=>{const rows=items.filter(x=>x.category===category&&!state.pantry.includes(x.id));if(!rows.length)return '';return `<section class="shopping-group"><h3>${t(labels[category])}</h3>${rows.map(row=>{const chk=`${state.cadence}-${state.segment}-${row.id}`;return `<div class="shopping-row"><label><input type="checkbox" data-action="checked-grocery" data-id="${esc(chk)}" ${state.checked[chk]?'checked':''}><span>${esc(ingredients[row.id][lang==='es'?1:0])}</span></label><span class="qty">${fmt(row.amount,row.unit)}</span><button class="pantry-btn" data-action="pantry-add" data-id="${row.id}">${t('removeFromList')}</button></div>`;}).join('')}</section>`;}).join('');};
-  const groceries=()=>{const chunks=periods();state.segment=Math.min(Math.max(0,state.segment),chunks.length-1);const period=chunks[state.segment],items=groceriesFor(period),need=items.filter(x=>!state.pantry.includes(x.id));return `<div class="page-head"><div><p class="eyebrow">${t('groceryEyebrow')}</p><h1>${t('groceryTitle')}</h1><p class="sub">${t('grocerySub')}</p></div><button class="btn btn-light" data-route="preferences">${icon('settings')} ${t('preferences')}</button></div><div class="card card-pad" style="margin-bottom:19px"><div class="card-head"><h2>${pick('How often do you want groceries?','¿Cada cuánto prefieres recibir compras?')}</h2></div><div class="pill-group">${[['weekly','onceWeek'],['three','everyThree'],['daily','daily']].map(([key,label])=>`<button class="pill ${state.cadence===key?'selected':''}" data-action="cadence" data-val="${key}" aria-pressed="${state.cadence===key}">${t(label)}</button>`).join('')}</div></div>
+  const groceries=()=>{if(window.__ncPlan)return serverGroceries();const chunks=periods();state.segment=Math.min(Math.max(0,state.segment),chunks.length-1);const period=chunks[state.segment],items=groceriesFor(period),need=items.filter(x=>!state.pantry.includes(x.id));return `<div class="page-head"><div><p class="eyebrow">${t('groceryEyebrow')}</p><h1>${t('groceryTitle')}</h1><p class="sub">${t('grocerySub')}</p></div><button class="btn btn-light" data-route="preferences">${icon('settings')} ${t('preferences')}</button></div><div class="card card-pad" style="margin-bottom:19px"><div class="card-head"><h2>${pick('How often do you want groceries?','¿Cada cuánto prefieres recibir compras?')}</h2></div><div class="pill-group">${[['weekly','onceWeek'],['three','everyThree'],['daily','daily']].map(([key,label])=>`<button class="pill ${state.cadence===key?'selected':''}" data-action="cadence" data-val="${key}" aria-pressed="${state.cadence===key}">${t(label)}</button>`).join('')}</div></div>
     <div class="split"><section class="card card-pad"><div class="card-head"><div><h2>${t('needToShop')}</h2><p>${need.length} ${t('itemsNeeded')}</p></div><span class="badge badge-neutral">${t('delivery')} ${state.segment+1}/${chunks.length}</span></div><div class="pill-group" style="margin-bottom:20px">${chunks.map((p,i)=>`<button class="pill ${state.segment===i?'selected':''}" data-action="segment" data-val="${i}">${p.label}</button>`).join('')}</div>
     ${need.length?groupedGrocery(items):`<div class="empty">${t('noItems')}</div>`}<p class="tiny muted">${t('groceryNote')}</p><button class="btn btn-light" data-action="copy-groceries">${icon('basket')} ${t('copyList')}</button></section>
     <aside><div class="shopping-summary"><p class="eyebrow">${t('retailer')}</p><strong>${state.store==='walmart'?'Walmart':state.store==='instacart'?'Instacart':t('storeOther')}</strong><p>${t('storeUnlinked')}</p><button class="inline-link" data-route="preferences">${pick('Change preference','Cambiar preferencia')} ${icon('arrow')}</button><button class="btn" data-action="unconnected">${t('checkout')}</button><div class="info-bullet">${icon('lock')} <span>${t('storeNotice')}</span></div></div>
@@ -258,7 +258,7 @@
       <div class="recipe-footer"><button class="btn btn-light" data-action="recipe-swap" data-slot="${slot}">${icon('refresh')} ${t('swap')}</button><button class="btn" data-action="recipe-groceries">${icon('basket')} ${t('reviewList')}</button></div>
     </div></div>`;
   };
-  const modalHTML=()=>{if(!modal)return '';if(modal.type==='recipe')return recipeModal();if(modal.type==='swap')return `<div class="modal-shade" id="modal-overlay"><div class="modal" role="dialog" aria-modal="true" aria-label="${t('modalSwap')}"><div class="modal-head"><h2>${t('modalSwap')}</h2><button class="close" data-action="close-modal" aria-label="${t('close')}">×</button></div><p class="sub" style="margin:12px 0 21px">${t('modalSwapCopy')}</p>${Object.entries(recipes).filter(([id,r])=>r.slot===modal.slot).map(([id,r])=>`<button class="swap-option" data-action="choose-recipe" data-id="${id}">${mealFigure(modal.slot,id)}<span><strong>${recipeName(id)}</strong><small>${r.mins} ${t('recipeMinutes')} · ${esc(pick(r.desc[0],r.desc[1]))}</small></span>${state.meals[state.day][modal.slot]===id?icon('check'):''}</button>`).join('')}</div></div>`;
+  const modalHTML=()=>{if(!modal)return '';if(modal.type==='server-recipe')return serverRecipeModal(modal.rev);if(modal.type==='recipe')return recipeModal();if(modal.type==='swap')return `<div class="modal-shade" id="modal-overlay"><div class="modal" role="dialog" aria-modal="true" aria-label="${t('modalSwap')}"><div class="modal-head"><h2>${t('modalSwap')}</h2><button class="close" data-action="close-modal" aria-label="${t('close')}">×</button></div><p class="sub" style="margin:12px 0 21px">${t('modalSwapCopy')}</p>${Object.entries(recipes).filter(([id,r])=>r.slot===modal.slot).map(([id,r])=>`<button class="swap-option" data-action="choose-recipe" data-id="${id}">${mealFigure(modal.slot,id)}<span><strong>${recipeName(id)}</strong><small>${r.mins} ${t('recipeMinutes')} · ${esc(pick(r.desc[0],r.desc[1]))}</small></span>${state.meals[state.day][modal.slot]===id?icon('check'):''}</button>`).join('')}</div></div>`;
     return `<div class="modal-shade" id="modal-overlay"><div class="modal" role="dialog" aria-modal="true" aria-label="${t('notConnected')}"><div class="modal-head"><h2>${modal.type==='credits'?t('buyCredits'):t('notConnected')}</h2><button class="close" data-action="close-modal" aria-label="${t('close')}">×</button></div><p class="sub" style="margin:18px 0">${modal.type==='credits'?t('buyCreditsBody'):t('notConnectedBody')}</p><button class="btn btn-light" data-action="close-modal">${t('close')}</button></div></div>`;};
   const pages={overview, myPlan:menu,groceries,consultations,services,progress,preferences};
   function render(){document.documentElement.lang=lang;document.title=`${t(state.route)} · Nutri Chapina`;document.getElementById('app').innerHTML=`<div class="app">${header()}${(pages[state.route]||overview)()}${footer()}</div>${modalHTML()}`;const date=document.getElementById('session-date');if(date){const x=new Date();x.setHours(12,0,0,0);date.min=`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;} }
@@ -272,6 +272,8 @@
     if(action==='close-sidebar'){state.sidebarOpen=false;render();return;}
     if(action==='reset'){if(confirm(pick('Reset all demo changes on this device?','¿Reiniciar todos los cambios de esta demostración?'))){state=initial();save();render();toast(pick('Demo reset','Demo reiniciada'));}return;}
     if(action==='day'||action==='go-menu-day'){state.day=Number(el.dataset.day);if(action==='go-menu-day')state.route='myPlan';save();render();return;}
+    if(action==='view-server-recipe'){modal={type:'server-recipe',rev:el.dataset.id};render();return;}
+    if(action==='srv-day'){window.__ncDay=Number(el.dataset.day)||1;render();return;}
     if(action==='view-recipe'){
       const id=el.dataset.id,slot=el.dataset.slot;
       if(!recipes[id]||recipes[id].slot!==slot)return;
@@ -315,12 +317,86 @@
   });
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal){modal=null;render();}});
   document.addEventListener('click',e=>{if(e.target?.id==='modal-overlay'){modal=null;render();}});
+  // M2 staging integration: assigned plan + server recipes + structured groceries.
+  // No API -> pure demo, unchanged. Server data never mixes with demo state.
+  window.__ncDay=1;
+  function srvRecipe(rec){return (window.__ncPlan&&window.__ncPlan.recipes[rec.id])||null}
+  function srvTitle(r){const c=(r.contents||[]).find(x=>x.locale===lang)||r.contents[0]||{};return c.title||''}
+  function srvDayMeals(day){return (window.__ncPlan.meals||[]).filter(m=>m.day===day)}
+  function srvDays(){const ds=[...new Set((window.__ncPlan.meals||[]).map(m=>m.day))].sort((a,b)=>a-b);return ds.length?ds:[1]}
+  function serverMenu(){
+    const days=srvDays();
+    if(window.__ncDay>Math.max(...days)||window.__ncDay<Math.min(...days))window.__ncDay=days[0];
+    const meals=srvDayMeals(window.__ncDay);
+    const cards=meals.map(m=>{
+      const r=window.__ncPlan.recipes[m.recipe_revision_id];
+      const title=r?srvTitle(r):m.recipe_revision_id.slice(0,8);
+      const serv=m.slot==='dinner'?(window.__ncPlan.household.household_size||1):1;
+      return `<div class="card menu-card"><div class="menu-details"><div class="slot-label">${t(m.slot)} · ${pick('Day','Día')} ${m.day}</div><button class="recipe-title-button" data-action="view-server-recipe" data-id="${m.recipe_revision_id}"><strong>${esc(title)}</strong></button><span class="muted">${serv} ${pick('serving(s)','porción(es)')}${r&&r.nutrition_verified?' · '+t('nutVerified'):''}</span></div><div class="menu-actions"><button class="recipe-open-link" data-action="view-server-recipe" data-id="${m.recipe_revision_id}">${t('openIngredients')} ${icon('arrow')}</button></div></div>`;
+    }).join('');
+    return `<div class="page-head"><div><p class="eyebrow">${t('menuEyebrow')}</p><h1>${t('menuTitle')}</h1><p class="sub">${t('menuSub')}</p><p class="muted small">${pick('Assigned plan from your dietitian. Swaps and check-ins arrive with guided support.','Plan asignado por tu nutricionista. Los cambios y registros llegan con el acompañamiento.')}</p></div><button class="btn btn-light" data-route="groceries">${icon('basket')} ${t('reviewList')}</button></div>
+    <div class="daystrip" role="group" aria-label="${t('thisWeek')}">${days.map(d=>`<button class="daybtn ${window.__ncDay===d?'active':''}" data-action="srv-day" data-day="${d}" aria-pressed="${window.__ncDay===d}"><span>${pick('Day','Día')}</span><strong>${d}</strong></button>`).join('')}</div>
+    <div class="split"><section class="menu-cards">${cards||`<div class="empty">${t('noItems')}</div>`}</section></div>`;
+  }
+  function serverRecipeModal(revId){
+    const r=(window.__ncPlan&&window.__ncPlan.recipes[revId])||null;
+    if(!r)return `<div class="modal-shade" id="modal-overlay"><div class="modal" role="dialog" aria-modal="true"><p>${t('notConnected')}</p><div class="modal-buttons"><button class="btn btn-light" data-action="close-modal">${t('close')}</button></div></div></div>`;
+    const title=srvTitle(r);
+    const items=(r.items||[]).map(x=>`<li><span>${esc(x.name||'?')}</span><strong>${esc(String(x.quantity))} ${esc(x.unit||'')}</strong></li>`).join('');
+    const steps=((r.contents.find(c=>c.locale===lang)||r.contents[0]||{}).steps||[]).map(s=>`<li>${esc(s)}</li>`).join('');
+    const nut=r.nutrition_verified&&r.nutrition?`<h3>${t('nutTitle')}</h3><div class="nutrition-grid"><div class="nutrition-cell"><strong>${esc(String(r.nutrition.calories??''))} kcal</strong><span>${t('nutCal')}</span></div><div class="nutrition-cell"><strong>${esc(String(r.nutrition.protein_g??r.nutrition.protein??''))} g</strong><span>${t('nutPro')}</span></div><div class="nutrition-cell"><strong>${esc(String(r.nutrition.carbs_g??r.nutrition.carbs??''))} g</strong><span>${t('nutCarb')}</span></div><div class="nutrition-cell"><strong>${esc(String(r.nutrition.fiber_g??r.nutrition.fiber??''))} g</strong><span>${t('nutFib')}</span></div></div>`:`<p class="muted small">${t('nutUnverified')}</p>`;
+    const img=(r.images&&r.images[0])?`<img src="${esc(r.images[0].path)}" alt="${esc(r.images[0].alt||'')}" style="width:100%;border-radius:10px;margin:0 0 14px">`:'';
+    return `<div class="modal-shade" id="modal-overlay"><div class="modal recipe-modal" role="dialog" aria-modal="true" aria-labelledby="recipe-heading"><button aria-label="${pick('Close dialog','Cerrar ventana')}" class="modal-close" data-action="close-modal">×</button><span class="eyebrow">${t('recipeDetails')}</span><h2 id="recipe-heading">${esc(title)}</h2><p class="muted">${r.servings} ${t('recipeServing')}</p>${img}<div class="recipe-body"><h3>${t('recipeIngredients')}</h3><ul class="recipe-ingredients">${items||`<li>${t('noItems')}</li>`}</ul>${nut}<h3>${t('recipeDirections')}</h3><ol class="recipe-steps">${steps||`<li>${t('noItems')}</li>`}</ol><div class="recipe-disclaimer"><span>${t('recipeTip')}</span></div></div></div></div>`;
+  }
+  function serverGroceries(){
+    const P=window.__ncPlan;
+    const agg={};
+    for(const m of (P.meals||[])){
+      const r=P.recipes[m.recipe_revision_id];
+      if(!r)continue;
+      const serv=m.slot==='dinner'?(P.household.household_size||1):1;
+      for(const it of (r.items||[])){
+        const k=(it.name||'?')+'|'+(it.unit||'');
+        agg[k]=agg[k]||{name:it.name||'?',unit:it.unit||'',amount:0};
+        agg[k].amount+=Number(it.quantity||0)*serv;
+      }
+    }
+    const rows=Object.values(agg).map(x=>`<tr><td>${esc(x.name)}</td><td><strong>${esc(String(Math.round(x.amount*10)/10))} ${esc(x.unit)}</strong></td></tr>`).join('');
+    const days=srvDays();
+    const perDay=days.map(d=>`<h3>${pick('Day','Día')} ${d}</h3><ul class="recipe-ingredients">${srvDayMeals(d).map(m=>{const r=P.recipes[m.recipe_revision_id];return `<li><span>${esc(r?srvTitle(r):m.recipe_revision_id.slice(0,8))}</span><strong>${esc(m.slot)}</strong></li>`}).join('')}</ul>`).join('');
+    return `<div class="page-head"><div><p class="eyebrow">${t('groceryEyebrow')}</p><h1>${t('groceryTitle')}</h1><p class="sub">${t('grocerySub')}</p><p class="muted small">${pick('Aggregated from your assigned recipes and household servings. Pantry exclusions arrive with grocery checklists.','Agregado de tus recetas asignadas y porciones del hogar. Las exclusiones de despensa llegan con las listas.')}</p></div></div>
+    <section class="card card-pad"><div class="table-wrap"><table class="table"><thead><tr><th>${t('needToShop')}</th><th>${t('groceryItems')}</th></tr></thead><tbody>${rows||`<tr><td colspan="2" class="empty">${t('noItems')}</td></tr>`}</tbody></table></div></section>${perDay}`;
+  }
   // M1 staging integration (progressive enhancement): if a same-origin API
   // session exists, show the signed-in account. No API -> pure demo, unchanged.
-  try{
-    fetch('/api/v1/me',{credentials:'same-origin'}).then(r=>{if(!r.ok) return null;return r.json()}).then(j=>{
-      if(j&&j.data&&j.data.user&&j.data.user.email){window.__ncAccount={email:j.data.user.email};render();}
-    }).catch(()=>{});
-  }catch(_){}
+  window.__ncAccount=null;window.__ncPlan=null;
+  async function probeAccount(){
+    try{
+      const r=await fetch('/api/v1/me',{credentials:'same-origin'});
+      if(!r.ok)return;
+      const j=await r.json().catch(()=>null);
+      if(!(j&&j.data&&j.data.user&&j.data.user.email))return;
+      window.__ncAccount={email:j.data.user.email};
+      try{
+        const p=await (await fetch('/api/v1/me/plans',{credentials:'same-origin'})).json().catch(()=>null);
+        if(p&&Array.isArray(p.data)&&p.data.length){
+          const det=await (await fetch('/api/v1/me/plans/'+p.data[0].id,{credentials:'same-origin'})).json().catch(()=>null);
+          if(det&&det.data&&Array.isArray(det.data.meals)){
+            const ids=[...new Set(det.data.meals.map(m=>m.recipe_revision_id))];
+            const recs={};
+            await Promise.all(ids.map(async id=>{
+              try{
+                const rr=await (await fetch('/api/v1/me/recipes/'+id,{credentials:'same-origin'})).json().catch(()=>null);
+                if(rr&&rr.data)recs[id]=rr.data;
+              }catch(e){}
+            }));
+            window.__ncPlan={plan:det.data.plan,meals:det.data.meals,recipes:recs,household:(j.data.household||{household_size:1})};
+          }
+        }
+      }catch(e){}
+      render();
+    }catch(e){}
+  }
+  probeAccount();
   render();
 })();
