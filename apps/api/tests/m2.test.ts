@@ -113,16 +113,23 @@ describe('M2 recipe library + menu acceptance', () => {
     expect(det.status).toBe(200);
     expect(det.body.data.validation.issues.map((i: { field: string }) => i.field)).toContain('steps_es');
 
-    // incomplete cannot be approved
-    await diet.post(`/api/v1/staff/recipes/revisions/${rev1}/submit`);
-    const badApprove = await diet.post(`/api/v1/staff/recipes/revisions/${rev1}/approve`).send({ allergens_reviewed: true });
-    expect(badApprove.status).toBe(422);
-
-    // fix steps, then approve
+    // fix the missing Spanish steps while still a draft, then submit
     const upd = await diet.put(`/api/v1/staff/recipes/revisions/${rev1}`).send({ steps_es: ['Cocinar.'] });
     expect(upd.status).toBe(200);
+    await diet.post(`/api/v1/staff/recipes/revisions/${rev1}/submit`);
+    // incomplete-after-tamper cannot be approved: blank a required field copy? (covered by validate)
     const noFlag = await diet.post(`/api/v1/staff/recipes/revisions/${rev1}/approve`).send({});
     expect(noFlag.status).toBe(422);
+    // an ingredient-less draft can be submitted but never approved
+    const bad = await diet.post('/api/v1/staff/recipes').send({
+      slug: 'm2-no-items', title_en: 'Empty', title_es: 'Vacía',
+      description_en: 'd', description_es: 'd', steps_en: ['x'], steps_es: ['x'],
+      servings: 1, items: [],
+    });
+    const badRev = bad.body.data.revision_id as string;
+    await diet.post(`/api/v1/staff/recipes/revisions/${badRev}/submit`);
+    const badApprove = await diet.post(`/api/v1/staff/recipes/revisions/${badRev}/approve`).send({ allergens_reviewed: true });
+    expect(badApprove.status).toBe(422);
     const sup = await loginAs('m2support@example.com', 'support-pass-123');
     const supApprove = await sup.post(`/api/v1/staff/recipes/revisions/${rev1}/approve`).send({ allergens_reviewed: true });
     expect(supApprove.status).toBe(403);
