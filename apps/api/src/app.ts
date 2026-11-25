@@ -41,7 +41,9 @@ export function buildApp(): express.Express {
   });
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error(req.id, err);
+    // Never log request bodies: they may contain credentials on parse failure.
+    const e = err as { status?: number; message?: string };
+    console.error(req.id, e?.status ?? 500, e?.message ?? 'error');
     res.status(500).json({ data: null, error: { code: 'server_error', message: msg('server_error', req.locale) }, request_id: req.id });
   });
   return app;
