@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<meta content="#f9f7f3" name="theme-color"/>
+<meta content="Nutri Chapina: thoughtful nutrition guidance, flexible meals, and simpler grocery planning for real life." name="description"/>
+<title>Nutri Chapina — Healthy eating for real life</title>
+<style>
+    :root {
+      --cream: #f9f7f3; --paper: #fffefa; --ink: #252b24; --muted: #65695f;
+      --forest: #43533e; --forest-dark: #33422f; --sage: #ecefe8;
+      --line: #e9e7df; --warm: #f1ece5; --ring: #8a9d80;
+      --max: 1160px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--cream); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; }
+    :focus-visible { outline: 3px solid var(--ring); outline-offset: 4px; }
+    .container { width: min(var(--max), calc(100% - 72px)); margin: 0 auto; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font-family: Georgia, 'Times New Roman', serif; font-weight: 600; font-size: 23px; letter-spacing: -.9px; white-space: nowrap; }
+    .brand-mark { width: 26px; height: 30px; flex-shrink: 0; color: var(--forest); }
+    .site-header { height: 78px; background: rgba(249,247,243,.94); border-bottom: 1px solid rgba(68,75,60,.08); position: sticky; z-index: 30; top: 0; backdrop-filter: blur(14px); }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; height: 100%; gap: 24px; }
+    .nav { display: flex; gap: 36px; align-items: center; color: #50574c; font-size: 13px; font-weight: 600; }
+    .nav a { transition: color .2s; }
+    .nav a:hover { color: var(--forest-dark); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 11px; border-radius: 9px; min-height: 48px; padding: 13px 23px; background: var(--forest); color: white; border: 1px solid var(--forest); font-size: 13px; font-weight: 650; letter-spacing: .05px; line-height: 1.2; transition: background .2s, transform .2s, box-shadow .2s; }
+    .btn:hover { background: var(--forest-dark); transform: translateY(-1px); box-shadow: 0 5px 18px rgba(39,61,39,.13); }
+    .btn-outline { background: transparent; color: var(--forest); }
+    .btn-outline:hover { background: var(--sage); box-shadow: none; }
+    .btn-white { background: white; color: var(--forest-dark); border-color: white; }
+    .btn-white:hover { background: #f5f4ed; }
+    .header-cta { min-height: 39px; padding: 9px 18px; }
+    .eyebrow { display: block; color: #6a775d; font-size: 11px; line-height: 1.4; font-weight: 760; letter-spacing: 2.15px; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2, h3 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; letter-spacing: -1.7px; }
+    h1 { font-size: clamp(47px,5.1vw,76px); line-height: 1.085; letter-spacing: -3.1px; margin: 24px 0 22px; }
+    h2 { font-size: clamp(35px,3.65vw,51px); line-height: 1.14; margin-bottom: 18px; }
+    h3 { font-size: 29px; letter-spacing: -1px; line-height: 1.13; margin-bottom: 13px; }
+    .lead { color: #62675f; font-size: 17px; line-height: 1.75; font-weight: 400; max-width: 500px; }
+    .hero { padding: 74px 0 72px; overflow: hidden; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0,1.06fr) minmax(0,.94fr); align-items: center; column-gap: 72px; }
+    .hero-copy { padding-bottom: 10px; }
+    .hero-copy .lead { margin-bottom: 27px; }
+    .hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 13px; }
+    .subtle-link { display: inline-flex; align-items: center; gap: 8px; color: #3f5140; font-size: 13px; font-weight: 650; padding: 12px 10px; }
+    .subtle-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+    .hero-note { margin-top: 32px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #777b71; }
+    .hero-note .round-check { background: #e3eadf; border-radius: 50%; color: #506b49; height: 23px; width: 23px; display: grid; place-items: center; font-size: 14px; }
+    .hero-visual { position: relative; padding: 14px 0 15px 16px; }
+    .hero-visual:before { content: ''; position: absolute; inset: 39px -25px -10px 43px; background: #e8e6db; border-radius: 45% 45% 12px 12px; transform: rotate(3deg); }
+    .hero-image { display: block; object-fit: cover; object-position: center; aspect-ratio: 4/4.15; width: 100%; position: relative; border-radius: 49% 49% 10px 10px; box-shadow: 0 16px 45px rgba(82,75,54,.09); }
+    .hero-caption { position: absolute; z-index: 2; background: #fffefa; border: 1px solid #eee9df; box-shadow: 0 10px 30px rgba(61,57,45,.1); border-radius: 10px; padding: 17px 20px; bottom: 4px; left: -20px; display: flex; align-items: center; gap: 12px; }
+    .hero-caption-icon { width: 37px; height: 37px; background: #eef1e7; color: #43563d; border-radius: 8px; display: grid; place-items: center; font-size: 18px; }
+    .hero-caption strong { font-size: 13px; display: block; margin-bottom: 3px; }
+    .hero-caption span { font-size: 11px; color: var(--muted); }
+    .divider { border-top: 1px solid var(--line); }
+    .benefits { padding: 26px 0 28px; background: #fdfbf7; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .benefits-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 28px; }
+    .benefit { display: flex; align-items: center; gap: 14px; justify-content: center; font-size: 13px; font-weight: 600; color: #4e574b; white-space: nowrap; }
+    .benefit svg { width: 23px; height: 23px; stroke: #68815b; fill: none; stroke-width: 1.55; flex-shrink: 0; }
+    .section { padding: 99px 0; }
+    .section-heading { max-width: 620px; margin: 0 auto 37px; text-align: center; }
+    .section-heading .eyebrow { margin-bottom: 16px; }
+    .section-heading p { font-size: 15px; color: var(--muted); line-height: 1.75; }
+    .programs { background: #fffefa; }
+    .service-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
+    .service { position: relative; background: var(--cream); border: 1px solid #e9e5dc; border-radius: 14px; padding: 35px 38px 33px; min-height: 317px; display: flex; flex-direction: column; align-items: start; transition: box-shadow .2s, transform .2s; }
+    .service:hover { transform: translateY(-3px); box-shadow: 0 16px 35px rgba(49,56,43,.07); }
+    .service .small-label { color: #6e7a67; font-size: 11px; text-transform: uppercase; letter-spacing: 1.45px; font-weight: 750; margin-bottom: 22px; }
+    .service p { font-size: 14px; line-height: 1.7; color: #64695f; max-width: 370px; margin-bottom: 28px; }
+    .service button { margin-top: auto; }
+    .service:nth-child(2) { background: #edf0e9; border-color: #e3e9dc; }
+    .service h3 { max-width: 350px; }
+    .fine-print { font-size: 11.5px; text-align: center; margin-top: 20px; color: #858779; }
+    .approach { padding: 97px 0 101px; }
+    .approach-grid { display: grid; grid-template-columns: .82fr 1.18fr; gap: 95px; align-items: center; }
+    .approach h2 { max-width: 370px; margin-top: 18px; }
+    .approach-copy { color: var(--muted); font-size: 15px; line-height: 1.75; max-width: 400px; }
+    .steps { display: grid; gap: 0; }
+    .step { border-bottom: 1px solid #e5e6dc; display: grid; grid-template-columns: 46px 1fr; gap: 16px; padding: 21px 0; }
+    .step:first-child { padding-top: 0; }
+    .step:last-child { border-bottom: 0; padding-bottom: 0; }
+    .step-num { font-size: 15px; color: #8a987d; font-weight: 700; }
+    .step strong { font-family: Georgia, serif; font-weight: 400; font-size: 21px; letter-spacing: -.6px; }
+    .step p { margin: 8px 0 0; font-size: 13px; line-height: 1.65; color: var(--muted); max-width: 385px; }
+    .human { background: var(--warm); padding: 76px 0; }
+    .human-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+    .human h2 { margin: 15px 0 15px; max-width: 420px; }
+    .human p { font-size: 15px; color: var(--muted); line-height: 1.8; max-width: 470px; margin-bottom: 0; }
+    .human-card { background: #fffefa; border: 1px solid #e8e2d6; padding: 37px; border-radius: 13px; box-shadow: 0 12px 30px rgba(44,45,38,.035); }
+    .human-card .icon-wrap { height: 42px; width: 42px; display: grid; place-items: center; background: var(--sage); border-radius: 50%; margin-bottom: 17px; }
+    .human-card .icon-wrap svg { width: 24px; height: 24px; stroke: var(--forest); fill: none; stroke-width: 1.5; }
+    .human-card strong { display: block; font-family: Georgia, serif; letter-spacing: -.5px; font-size: 23px; font-weight: 400; margin-bottom: 9px; }
+    .human-card p { font-size: 13px; line-height: 1.7; margin: 0 0 16px; }
+    .human-card .little { color: #788170; font-size: 11px; font-weight: 700; letter-spacing: .4px; }
+    .closing { background: var(--forest-dark); color: white; padding: 74px 0; }
+    .closing-grid { display: flex; align-items: center; justify-content: space-between; gap: 35px; }
+    .closing h2 { color: white; font-size: clamp(32px,3.5vw,46px); margin: 0 0 8px; max-width: 620px; }
+    .closing p { color: #d8e0d0; font-size: 14px; margin: 0; line-height: 1.7; }
+    .footer { background: var(--cream); padding: 28px 0; }
+    .footer-grid { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .footer .brand { font-size: 18px; }
+    .footer .brand-mark { width: 21px; }
+    .footer-note { font-size: 11px; color: #8b8e85; text-align: right; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(26,35,25,.52); padding: 20px; }
+    .modal-backdrop.active { display: flex; }
+    .modal { width: min(100%, 510px); background: var(--paper); padding: 36px; border-radius: 16px; box-shadow: 0 30px 120px rgba(10,20,10,.2); position: relative; max-height: min(780px,90vh); overflow-y: auto; }
+    .modal .eyebrow { margin-bottom: 17px; }
+    .modal h2 { font-size: 36px; line-height: 1.14; }
+    .modal p { font-size: 14px; line-height: 1.73; color: var(--muted); }
+    .modal ul { list-style: none; padding: 0; margin: 20px 0 30px; }
+    .modal li { display: flex; align-items: flex-start; gap: 10px; margin: 13px 0; font-size: 13px; color: #4e5c49; }
+    .modal li:before { content: '✓'; font-weight: bold; color: #57714f; }
+    .modal-close { border: 0; background: #f0f0ea; color: #394539; height: 33px; width: 33px; display: grid; place-items: center; border-radius: 50%; position: absolute; top: 18px; right: 18px; font-size: 20px; }
+    .modal-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+    .prototype-msg { font-size: 11px !important; margin: 20px 0 0; color: #858b7d !important; }
+    @media (max-width: 920px) {
+      .container { width: min(var(--max), calc(100% - 48px)); }
+      .hero { padding: 57px 0 60px; }
+      .hero-grid { gap: 35px; }
+      h1 { font-size: clamp(42px,5.5vw,58px); letter-spacing: -2px; }
+      .hero-caption { left: -9px; }
+      .approach-grid { gap: 38px; }
+      .human-grid { gap: 38px; }
+      .nav { gap: 19px; }
+      .service { padding: 29px; }
+    }
+    @media (max-width: 700px) {
+      .container { width: calc(100% - 36px); }
+      .site-header { height: 68px; }
+      .brand { font-size: 21px; }
+      .nav { display: none; }
+      .header-cta { font-size: 12px; padding: 9px 11px; min-height: 38px; }
+      .hero { padding: 45px 0 45px; }
+      .hero-grid { display: flex; flex-direction: column; align-items: stretch; gap: 32px; }
+      h1 { font-size: clamp(43px,10vw,57px); margin: 16px 0; }
+      .lead { font-size: 15px; line-height: 1.7; }
+      .hero-visual { width: min(100%,500px); margin: auto; padding: 0 6px; }
+      .hero-visual:before { inset: 21px -4px -5px 20px; }
+      .hero-image { aspect-ratio: 1.12/1; border-radius: 43% 43% 10px 10px; }
+      .hero-caption { bottom: -12px; left: -1px; padding: 12px 15px; }
+      .hero-note { margin-top: 22px; }
+      .benefits { padding: 18px 0; }
+      .benefits-grid { grid-template-columns: 1fr; gap: 13px; }
+      .benefit { justify-content: flex-start; }
+      .benefit svg { width: 18px; height: 18px; }
+      .section { padding: 68px 0; }
+      .section-heading { margin-bottom: 26px; }
+      .service-grid, .approach-grid, .human-grid { grid-template-columns: 1fr; gap: 18px; }
+      .service { min-height: 287px; }
+      .approach-grid { gap: 31px; }
+      .approach { padding: 67px 0; }
+      .approach h2 { margin-top: 15px; }
+      .human { padding: 65px 0; }
+      .human-grid { gap: 26px; }
+      .closing { padding: 60px 0; }
+      .closing-grid { display: block; }
+      .closing .btn { margin-top: 22px; }
+      .footer-grid { flex-direction: column; align-items: flex-start; gap: 13px; }
+      .footer-note { text-align: left; }
+      .modal { padding: 30px 22px; }
+      .modal h2 { font-size: 32px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+  
+    /* Compact bilingual switch. Works even in the standalone offline HTML file. */
+    .header-actions { display:flex; align-items:center; gap:14px; flex-shrink:0; }
+    .language-switch { display:inline-flex; align-items:center; gap:2px; padding:3px; border-radius:9px; border:1px solid #dddcd3; background:#eeece6; }
+    .language-option { border:0; background:transparent; color:#586351; border-radius:6px; padding:8px 9px; min-width:37px; font-size:11px; font-weight:750; line-height:1; letter-spacing:.4px; transition:background .18s,color .18s,box-shadow .18s; }
+    .language-option:hover { color:#243723; }
+    .language-option.selected { background:#fffefa; color:#283d28; box-shadow:0 1px 4px rgba(50,55,40,.12); }
+    @media (max-width: 920px) {
+      .header-actions { gap:9px; }
+      .benefits-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap:15px; }
+      .benefit { white-space:normal; justify-content:flex-start; line-height:1.45; }
+    }
+    @media (max-width: 700px) {
+      .header-inner { gap:9px; }
+      .language-option { padding:8px 7px; min-width:34px; }
+      .benefits-grid { grid-template-columns:1fr; gap:13px; }
+    }
+    @media (max-width: 395px) {
+      .header-cta { display:none; } /* Main hero CTA remains visible immediately below */
+    }
+</style>
+<link rel="icon" href="assets/nutri-chapina-leaf-mark.svg" type="image/svg+xml"/>
+</head>
+<body>
+<header class="site-header">
+<div class="container header-inner">
+<a aria-label="Nutri Chapina, back to top" class="brand" data-i18n-aria="brandTop" href="#top">
+<svg aria-hidden="true" class="brand-mark" viewbox="0 0 30 32"><path d="M15 29C13 18 17 9 24 3" fill="none" stroke="currentColor" stroke-width="1.7"></path><path d="M18 15C12 4 3 6 3 6C4 18 12 21 18 15Z" fill="currentColor" opacity=".94"></path><path d="M19 13C31 12 29 2 29 2C21 4 18 8 19 13Z" fill="currentColor" opacity=".78"></path></svg>
+        Nutri Chapina
+      </a>
+<nav aria-label="Main navigation" class="nav" data-i18n-aria="mainNavigation"><a href="#approach"><span data-i18n="navHow">How it works</span></a><a href="#programs"><span data-i18n="navServices">Our services</span></a><a href="#about"><span data-i18n="navApproach">Our approach</span></a></nav>
+
+<div class="header-actions"><div aria-label="Select language" class="language-switch" data-i18n-aria="languageSwitcher" role="group"><button aria-label="English" aria-pressed="true" class="language-option" data-language="en" lang="en" type="button">EN</button><button aria-label="Español" aria-pressed="false" class="language-option" data-language="es" lang="es" type="button">ES</button></div><button class="btn header-cta" data-open="chooser"><span data-i18n="getStarted">Get started</span> <span aria-hidden="true">↗</span></button></div></div>
+</header>
+<main id="top">
+<section aria-labelledby="hero-title" class="hero">
+<div class="container hero-grid">
+<div class="hero-copy">
+<span class="eyebrow"><span data-i18n="heroEyebrow">Thoughtful nutrition, made practical</span></span>
+<h1 id="hero-title"><span data-i18n="heroStart">Healthy eating that fits</span> <em style="font-weight:400;color:#64785a"><span data-i18n="heroEnd">your life.</span></em></h1>
+<p class="lead"><span data-i18n="heroLead">Feel better about food with flexible meal plans, easier grocery shopping, and real guidance from a dietitian who cares.</span></p>
+<div class="hero-actions"><a class="btn" href="#programs"><span data-i18n="heroAction">Explore your options</span> <span aria-hidden="true">→</span></a><a class="subtle-link" href="#approach"><span data-i18n="heroHow">See how it works</span> <span aria-hidden="true">↗</span></a></div>
+<div class="hero-note"><span aria-hidden="true" class="round-check">✓</span><span><span data-i18n="heroNote">No rigid rules. No separate family dinners.</span></span></div>
+</div>
+<div class="hero-visual">
+<img alt="A colorful balanced meal with chicken, rice, beans, avocado and fresh vegetables" class="hero-image" data-i18n-alt="heroImage" src="assets/hero-balanced-meal.webp"/>
+<div class="hero-caption"><div aria-hidden="true" class="hero-caption-icon">✧</div><div><strong><span data-i18n="heroCardTitle">Made for real life</span></strong><span><span data-i18n="heroCardSubtitle">Good food. Less guesswork.</span></span></div></div>
+</div>
+</div>
+</section>
+<section aria-label="What makes Nutri Chapina different" class="benefits" data-i18n-aria="benefitsLabel">
+<div class="container benefits-grid">
+<div class="benefit"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="M12 21s-8-5.4-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.6-8 11-8 11Z"></path></svg> <span data-i18n="benefitFamily">Meals that work for your household</span></div>
+<div class="benefit"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="M2 4h2l3 12h11l3-9H5M8 20h1M17 20h1" stroke-linecap="round" stroke-linejoin="round"></path></svg> <span data-i18n="benefitGroceries">Groceries, organized for you</span></div>
+<div class="benefit"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21v-3a6 6 0 0 1 12 0v3M18 9v8M14 13h8" stroke-linecap="round"></path></svg> <span data-i18n="benefitHuman">A real dietitian, not just an app</span></div>
+</div>
+</section>
+<section aria-labelledby="programs-title" class="section programs" id="programs">
+<div class="container">
+<div class="section-heading"><span class="eyebrow"><span data-i18n="programsEyebrow">Two ways to begin</span></span><h2 id="programs-title"><span data-i18n="programsTitle">Choose what feels right for you.</span></h2><p><span data-i18n="programsSubtitle">Take the lead with a guided digital plan, or get more personal support along the way.</span></p></div>
+<div class="service-grid">
+<article class="service"><span class="small-label"><span data-i18n="serviceDigitalEyebrow">At your own pace</span></span><h3><span data-i18n="serviceDigitalTitle">28-Day Meal Plan</span></h3><p><span data-i18n="serviceDigitalBody">A flexible, self-guided plan with easy-to-follow meals, grocery lists, and simple tracking. Plus an optional free 15-minute hello.</span></p><button class="btn btn-outline" data-open="digital"><span data-i18n="serviceDigitalAction">Explore the digital plan</span> <span aria-hidden="true">→</span></button></article>
+<article class="service"><span class="small-label"><span data-i18n="serviceGuidedEyebrow">More personal guidance</span></span><h3><span data-i18n="serviceGuidedTitle">One-on-One Nutrition Support</span></h3><p><span data-i18n="serviceGuidedBody">Work together on your goals, meals, and shopping routine. Book consultations when you need them, with flexible time credits.</span></p><button class="btn" data-open="guided"><span data-i18n="serviceGuidedAction">Explore personal guidance</span> <span aria-hidden="true">→</span></button></article>
+</div>
+<p class="fine-print"><span data-i18n="serviceFine">Every path starts with your real life, preferences, and goals.</span></p>
+</div>
+</section>
+<section aria-labelledby="approach-title" class="approach" id="approach"><div class="container approach-grid">
+<div><span class="eyebrow"><span data-i18n="approachEyebrow">A simpler way forward</span></span><h2 id="approach-title"><span data-i18n="approachTitleOne">Less planning.</span><br/><span data-i18n="approachTitleTwo">More living.</span></h2><p class="approach-copy"><span data-i18n="approachIntro">We're here to make everyday healthy eating feel manageable—not like another full-time job.</span></p></div>
+<div class="steps">
+<div class="step"><span class="step-num">01</span><div><strong><span data-i18n="stepOneTitle">Tell us what works for you.</span></strong><p><span data-i18n="stepOneBody">Share your goals, cooking comfort, budget, and family favorites.</span></p></div></div>
+<div class="step"><span class="step-num">02</span><div><strong><span data-i18n="stepTwoTitle">Find meals you'll actually enjoy.</span></strong><p><span data-i18n="stepTwoBody">Choose flexible menus designed to fit your routine.</span></p></div></div>
+<div class="step"><span class="step-num">03</span><div><strong><span data-i18n="stepThreeTitle">Shop and stay on track.</span></strong><p><span data-i18n="stepThreeBody">Review organized grocery lists, plan deliveries with your retailer, and track the habits that matter.</span></p></div></div>
+</div>
+</div></section>
+<section aria-labelledby="human-title" class="human" id="about"><div class="container human-grid">
+<div><span class="eyebrow"><span data-i18n="humanEyebrow">Nutrition with a human touch</span></span><h2 id="human-title"><span data-i18n="humanTitle">You're more than a meal plan.</span></h2><p><span data-i18n="humanBody">We believe real connection matters. Even if you choose the digital program, you'll have the option to meet your dietitian for a complimentary 15-minute introduction.</span></p></div>
+<div class="human-card"><div class="icon-wrap"><svg aria-hidden="true" viewbox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5Z" stroke-linejoin="round"></path><path d="M8 10h8M8 13h5" stroke-linecap="round"></path></svg></div><strong><span data-i18n="humanCardTitle">Real answers. Real encouragement.</span></strong><p><span data-i18n="humanCardBody">Questions and milestones deserve a conversation, not just a checklist. Support is here when you'd like it.</span></p><span class="little"><span data-i18n="humanCardNote">Optional 15-minute introduction · No extra charge</span></span></div>
+</div></section>
+<section class="closing"><div class="container closing-grid"><div><h2><span data-i18n="closingTitle">Good habits begin with a plan that feels possible.</span></h2><p><span data-i18n="closingBody">Find a nutrition path that works for you and the people around your table.</span></p></div><button class="btn btn-white" data-open="chooser"><span data-i18n="closingAction">Find your path</span> <span aria-hidden="true">→</span></button></div></section>
+</main>
+<footer class="footer"><div class="container footer-grid"><a class="brand" href="#top"><svg aria-hidden="true" class="brand-mark" viewbox="0 0 30 32"><path d="M15 29C13 18 17 9 24 3" fill="none" stroke="currentColor" stroke-width="1.7"></path><path d="M18 15C12 4 3 6 3 6C4 18 12 21 18 15Z" fill="currentColor" opacity=".94"></path><path d="M19 13C31 12 29 2 29 2C21 4 18 8 19 13Z" fill="currentColor" opacity=".78"></path></svg> Nutri Chapina</a><div class="footer-note"><span data-i18n="footerNote">Nutrition that fits real life.  ·  Website concept preview</span></div></div></footer>
+<div class="modal-backdrop" id="modal-backdrop" role="presentation"><div aria-labelledby="modal-title" aria-modal="true" class="modal" role="dialog" tabindex="-1"><button aria-label="Close dialog" class="modal-close" data-i18n-aria="closeDialog" id="close-modal">×</button><span class="eyebrow" id="modal-label"></span><h2 id="modal-title"></h2><p id="modal-description"></p><ul id="modal-points"></ul><div class="modal-buttons" id="modal-buttons"></div><p class="prototype-msg"><span data-i18n="prototype">This is a design prototype. Enrollment, payment and appointment booking are not connected yet.</span></p></div></div>
+
+<script>
+(() => {
+  const translations = {"en": {"navHow": "How it works", "navServices": "Our services", "navApproach": "Our approach", "getStarted": "Get started", "heroEyebrow": "Thoughtful nutrition, made practical", "heroStart": "Healthy eating that fits", "heroEnd": "your life.", "heroLead": "Feel better about food with flexible meal plans, easier grocery shopping, and real guidance from a dietitian who cares.", "heroAction": "Explore your options", "heroHow": "See how it works", "heroNote": "No rigid rules. No separate family dinners.", "heroCardTitle": "Made for real life", "heroCardSubtitle": "Good food. Less guesswork.", "benefitFamily": "Meals that work for your household", "benefitGroceries": "Groceries, organized for you", "benefitHuman": "A real dietitian, not just an app", "programsEyebrow": "Two ways to begin", "programsTitle": "Choose what feels right for you.", "programsSubtitle": "Take the lead with a guided digital plan, or get more personal support along the way.", "serviceDigitalEyebrow": "At your own pace", "serviceDigitalTitle": "28-Day Meal Plan", "serviceDigitalBody": "A flexible, self-guided plan with easy-to-follow meals, grocery lists, and simple tracking. Plus an optional free 15-minute hello.", "serviceDigitalAction": "Explore the digital plan", "serviceGuidedEyebrow": "More personal guidance", "serviceGuidedTitle": "One-on-One Nutrition Support", "serviceGuidedBody": "Work together on your goals, meals, and shopping routine. Book consultations when you need them, with flexible time credits.", "serviceGuidedAction": "Explore personal guidance", "serviceFine": "Every path starts with your real life, preferences, and goals.", "approachEyebrow": "A simpler way forward", "approachTitleOne": "Less planning.", "approachTitleTwo": "More living.", "approachIntro": "We're here to make everyday healthy eating feel manageable—not like another full-time job.", "stepOneTitle": "Tell us what works for you.", "stepOneBody": "Share your goals, cooking comfort, budget, and family favorites.", "stepTwoTitle": "Find meals you'll actually enjoy.", "stepTwoBody": "Choose flexible menus designed to fit your routine.", "stepThreeTitle": "Shop and stay on track.", "stepThreeBody": "Review organized grocery lists, plan deliveries with your retailer, and track the habits that matter.", "humanEyebrow": "Nutrition with a human touch", "humanTitle": "You're more than a meal plan.", "humanBody": "We believe real connection matters. Even if you choose the digital program, you'll have the option to meet your dietitian for a complimentary 15-minute introduction.", "humanCardTitle": "Real answers. Real encouragement.", "humanCardBody": "Questions and milestones deserve a conversation, not just a checklist. Support is here when you'd like it.", "humanCardNote": "Optional 15-minute introduction · No extra charge", "closingTitle": "Good habits begin with a plan that feels possible.", "closingBody": "Find a nutrition path that works for you and the people around your table.", "closingAction": "Find your path", "footerNote": "Nutrition that fits real life.  ·  Website concept preview", "prototype": "This is a design prototype. Enrollment, payment and appointment booking are not connected yet."}, "es": {"navHow": "Cómo funciona", "navServices": "Servicios", "navApproach": "Nuestra filosofía", "getStarted": "Comenzar", "heroEyebrow": "Nutrición práctica, pensada para ti", "heroStart": "Comer saludable, a", "heroEnd": "tu manera.", "heroLead": "Disfruta una alimentación más equilibrada con menús flexibles, compras más sencillas y el acompañamiento de una nutricionista que se preocupa por ti.", "heroAction": "Conoce tus opciones", "heroHow": "Descubre cómo funciona", "heroNote": "Sin dietas rígidas. Sin cocinar aparte para tu familia.", "heroCardTitle": "Pensado para la vida real", "heroCardSubtitle": "Come rico. Sin complicaciones.", "benefitFamily": "Comidas que disfruta toda la familia", "benefitGroceries": "Tu lista de compras, sin complicaciones", "benefitHuman": "Una nutricionista real, no solo una app", "programsEyebrow": "Dos formas de comenzar", "programsTitle": "Elige lo que mejor va contigo.", "programsSubtitle": "Avanza a tu ritmo con un plan digital o recibe acompañamiento personalizado.", "serviceDigitalEyebrow": "A tu propio ritmo", "serviceDigitalTitle": "Plan de alimentación de 28 días", "serviceDigitalBody": "Un programa flexible para seguir por tu cuenta, con recetas sencillas, listas de compras y registro de hábitos. Además, puedes agendar una charla de bienvenida gratis de 15 minutos.", "serviceDigitalAction": "Conoce el plan digital", "serviceGuidedEyebrow": "Acompañamiento personalizado", "serviceGuidedTitle": "Asesoría nutricional individual", "serviceGuidedBody": "Trabajamos contigo en tus metas, tus menús y tu rutina de compras. Agenda consultas cuando las necesites usando tus créditos de tiempo.", "serviceGuidedAction": "Conoce las consultas", "serviceFine": "Todo comienza con tus gustos, tus metas y tu vida real.", "approachEyebrow": "Hagámoslo más sencillo", "approachTitleOne": "Menos complicaciones.", "approachTitleTwo": "Más tiempo para vivir.", "approachIntro": "Queremos que comer saludable sea parte de tu vida, no otra tarea de tiempo completo.", "stepOneTitle": "Cuéntanos qué funciona para ti.", "stepOneBody": "Comparte tus metas, tu experiencia en la cocina, tu presupuesto y los gustos de tu familia.", "stepTwoTitle": "Encuentra comidas que de verdad disfrutes.", "stepTwoBody": "Elige menús flexibles que se adapten a tu rutina.", "stepThreeTitle": "Organiza tus compras y sigue avanzando.", "stepThreeBody": "Revisa tus listas de compras, coordina entregas con la tienda y registra los hábitos que te ayudan a avanzar.", "humanEyebrow": "Nutrición con un toque humano", "humanTitle": "Eres mucho más que un menú.", "humanBody": "Creemos en las conexiones de verdad. Aunque elijas el programa digital, tendrás la opción de conocer a tu nutricionista en una charla de bienvenida gratuita de 15 minutos.", "humanCardTitle": "Respuestas reales. Apoyo de verdad.", "humanCardBody": "Tus dudas y tus logros merecen una conversación, no solo una lista de tareas. Estamos aquí para acompañarte cuando lo necesites.", "humanCardNote": "Charla de 15 minutos opcional · Sin costo adicional", "closingTitle": "Los buenos hábitos empiezan con un plan que sí puedes seguir.", "closingBody": "Encuentra una forma de comer saludable que funcione para ti y para quienes comparten tu mesa.", "closingAction": "Encuentra tu camino", "footerNote": "Nutrición para la vida real. · Vista previa del sitio", "prototype": "Esta es una demostración del diseño. Las inscripciones, los pagos y las reservas de citas aún no están habilitados."}};
+  const localized = {"en": {"title": "Nutri Chapina — Healthy eating for real life", "description": "Nutri Chapina: thoughtful nutrition guidance, flexible meals, and simpler grocery planning for real life.", "brandTop": "Nutri Chapina, back to top", "heroImage": "A colorful balanced meal with chicken, rice, beans, avocado and fresh vegetables", "mainNavigation": "Main navigation", "benefitsLabel": "What makes Nutri Chapina different", "closeDialog": "Close dialog", "languageSwitcher": "Select language", "modal": {"chooser": {"label": "Welcome", "title": "How would you like to begin?", "description": "Both options make healthy eating easier. Choose the kind of support that feels right for you.", "points": [], "buttons": [["Explore the 28-day plan", "digital"], ["Explore consultations", "guided"]]}, "digital": {"label": "Self-guided", "title": "Your 28-day plan, your pace.", "description": "A supportive place to start making sustainable changes—with the tools to organize meals and groceries around your life.", "points": ["Flexible meals and portion guidance", "Organized grocery lists and easy food swaps", "Simple meal and habit tracking", "Optional complimentary 15-minute introduction"], "buttons": [["Compare both options", "chooser"], ["See how it works", "approach"]]}, "guided": {"label": "One-on-one support", "title": "More guidance, when you need it.", "description": "Work with your dietitian on a more personal approach to meals, grocery planning, and long-term habits.", "points": ["Personal nutrition conversations and menu support", "Consultation time credits you can use flexibly", "Help navigating household preferences and grocery plans", "Room to adjust as your needs change"], "buttons": [["Compare both options", "chooser"], ["See how it works", "approach"]]}}}, "es": {"title": "Nutri Chapina — Comer saludable a tu manera", "description": "Nutri Chapina: acompañamiento nutricional cercano, menús flexibles y compras más fáciles para la vida real.", "brandTop": "Nutri Chapina, volver al inicio", "heroImage": "Un plato equilibrado con pollo, arroz, frijoles, aguacate y vegetales frescos", "mainNavigation": "Navegación principal", "benefitsLabel": "Lo que hace diferente a Nutri Chapina", "closeDialog": "Cerrar ventana", "languageSwitcher": "Seleccionar idioma", "modal": {"chooser": {"label": "Bienvenida", "title": "¿Cómo te gustaría comenzar?", "description": "Ambas opciones te ayudan a comer saludable con menos complicaciones. Elige el acompañamiento que mejor se adapte a ti.", "points": [], "buttons": [["Conoce el plan de 28 días", "digital"], ["Conoce las consultas", "guided"]]}, "digital": {"label": "A tu ritmo", "title": "Tu plan de 28 días, a tu manera.", "description": "Un punto de partida para crear hábitos sostenibles, con herramientas para organizar tus comidas y compras según tu rutina.", "points": ["Menús flexibles y orientación sobre porciones", "Listas de compras organizadas y sustituciones sencillas", "Registro práctico de comidas y hábitos", "Charla de bienvenida gratuita de 15 minutos, si la deseas"], "buttons": [["Comparar las opciones", "chooser"], ["Descubre cómo funciona", "approach"]]}, "guided": {"label": "Asesoría individual", "title": "Más acompañamiento, cuando lo necesites.", "description": "Trabaja con tu nutricionista en una estrategia personal para tus comidas, compras y hábitos a largo plazo.", "points": ["Consultas personales y apoyo con tus menús", "Créditos de consulta que usas con flexibilidad", "Ayuda para considerar los gustos de tu familia y tus compras", "Ajustes a medida que cambian tus necesidades"], "buttons": [["Comparar las opciones", "chooser"], ["Descubre cómo funciona", "approach"]]}}}};
+  const backdrop = document.getElementById('modal-backdrop');
+  const dialog = backdrop.querySelector('.modal');
+  let currentLanguage='en';
+  let currentModal=null;
+  let previouslyFocused=null;
+
+  function renderModal(type){
+    const item=localized[currentLanguage].modal[type];
+    if(!item) return;
+    document.getElementById('modal-label').textContent=item.label;
+    document.getElementById('modal-title').textContent=item.title;
+    document.getElementById('modal-description').textContent=item.description;
+    const points=document.getElementById('modal-points');
+    points.replaceChildren();
+    item.points.forEach(v=>{const li=document.createElement('li');li.textContent=v;points.append(li);});
+    points.hidden=!item.points.length;
+    const buttons=document.getElementById('modal-buttons');
+    buttons.replaceChildren();
+    item.buttons.forEach(([label,target],i)=>{
+      const btn=document.createElement('button');
+      btn.className='btn'+(i?' btn-outline':'');
+      btn.textContent=label;
+      btn.onclick=()=>target==='approach'?(closeModal(),document.getElementById('approach').scrollIntoView({behavior:'smooth'})):openModal(target);
+      buttons.append(btn);
+    });
+  }
+
+  function setLanguage(lang){
+    if(!localized[lang]) return;
+    currentLanguage=lang;
+    document.documentElement.lang=lang;
+    document.title=localized[lang].title;
+    document.querySelector('meta[name="description"]').setAttribute('content',localized[lang].description);
+    document.querySelectorAll('[data-i18n]').forEach(node=>{
+      const key=node.dataset.i18n;
+      if(translations[lang][key]) node.textContent=translations[lang][key];
+    });
+    document.querySelectorAll('[data-i18n-aria]').forEach(node=>{
+      const key=node.dataset.i18nAria;
+      if(localized[lang][key]) node.setAttribute('aria-label',localized[lang][key]);
+    });
+    document.querySelectorAll('[data-i18n-alt]').forEach(node=>{
+      const key=node.dataset.i18nAlt;
+      if(localized[lang][key]) node.setAttribute('alt',localized[lang][key]);
+    });
+    document.querySelectorAll('.language-option').forEach(button=>{
+      const selected=button.dataset.language===lang;
+      button.setAttribute('aria-pressed',String(selected));
+      button.classList.toggle('selected',selected);
+    });
+    if(currentModal) renderModal(currentModal);
+    try { localStorage.setItem('nutriChapinaLanguage',lang); } catch(e) { /* private browsing/file: mode */ }
+  }
+
+  function openModal(type){
+    if(!localized[currentLanguage].modal[type]) return;
+    if(!currentModal) previouslyFocused=document.activeElement;
+    currentModal=type;
+    renderModal(type);
+    backdrop.classList.add('active');
+    document.body.style.overflow='hidden';
+    dialog.focus();
+  }
+  function closeModal(){
+    backdrop.classList.remove('active');
+    document.body.style.overflow='';
+    currentModal=null;
+    if(previouslyFocused?.focus) previouslyFocused.focus();
+  }
+  document.querySelectorAll('.language-option').forEach(button=>{
+    button.addEventListener('click',()=>setLanguage(button.dataset.language));
+  });
+  document.querySelectorAll('[data-open]').forEach(button=>{
+    button.addEventListener('click',()=>openModal(button.dataset.open));
+  });
+  document.getElementById('close-modal').addEventListener('click',closeModal);
+  backdrop.addEventListener('click',e=>{if(e.target===backdrop)closeModal();});
+  window.addEventListener('keydown',e=>{
+    if(e.key==='Escape'&&currentModal) closeModal();
+    if(e.key==='Tab'&&currentModal){
+      const els=[...dialog.querySelectorAll('button:not([disabled])')];
+      const first=els[0],last=els[els.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+    }
+  });
+
+  let preferredLanguage='';
+  try { preferredLanguage=localStorage.getItem('nutriChapinaLanguage')||''; } catch(e) {}
+  // Default to Spanish. Stored EN/ES choice wins. No geolocation prompt,
+  // no IP lookup — browser language / timezone intentionally not used here.
+  setLanguage(preferredLanguage==='en'||preferredLanguage==='es'?preferredLanguage:'es');
+})();
+</script></body>
+</html>
