@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Staff Console — Nutri Chapina (staging)</title>
+<style>
+:root{--bg:#f9f7f3;--ink:#252b24;--line:#e9e7df;--forest:#43533e}
+body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);margin:0}
+.wrap{max-width:860px;margin:0 auto;padding:24px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin:14px 0}
+input,button,select{font:inherit;padding:9px 12px;border-radius:8px;border:1px solid #cfccc2}
+button{background:var(--forest);color:#fff;border-color:var(--forest);cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+.err{color:#8a2f2f}.muted{color:#777}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1 id="title">Staff console <span class="muted">(staging)</span></h1>
+<div><button data-lang="en">EN</button> <button data-lang="es">ES</button></div>
+<div class="card" id="loginCard"><h2 data-i18n="login">Sign in</h2>
+<input id="email" type="email" autocomplete="username" placeholder="staff@example.com">
+<input id="pass" type="password" autocomplete="current-password" placeholder="••••••••••">
+<button id="loginBtn" data-i18n="loginBtn">Sign in</button>
+<p class="err" id="loginErr"></p></div>
+<div class="card" id="listCard" hidden><h2 data-i18n="clients">Customers</h2>
+<table><thead><tr><th>Email</th><th data-i18n="name">Name</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+<h3 data-i18n="new">New customer (admin)</h3>
+<input id="nEmail" type="email" placeholder="client@example.com">
+<input id="nPass" type="password" placeholder="password (10+ chars)">
+<input id="nName" placeholder="Display name">
+<button id="createBtn" data-i18n="create">Create</button>
+<p class="err" id="cErr"></p></div>
+<div class="card" id="detailCard" hidden><h2 id="dTitle"></h2><pre id="dBody"></pre><button id="backBtn">←</button></div>
+</div>
+<script>
+const S={en:{login:'Sign in',loginBtn:'Sign in',clients:'Customers',name:'Name',new:'New customer (admin)',create:'Create'},es:{login:'Acceso del equipo',loginBtn:'Entrar',clients:'Clientes',name:'Nombre',new:'Nuevo cliente (admin)',create:'Crear'}};
+let L=localStorage.getItem('nc_admin_lang')||'en';
+function t(k){return (S[L]&&S[L][k])||S.en[k]||k}
+function render(){document.querySelectorAll('[data-i18n]').forEach(e=>{e.textContent=t(e.dataset.i18n)})}
+document.querySelectorAll('[data-lang]').forEach(b=>b.onclick=()=>{L=b.dataset.lang;localStorage.setItem('nc_admin_lang',L);render()});
+const api=async(m,p,b)=>{const r=await fetch(p,{method:m,headers:{'Content-Type':'application/json'},credentials:'same-origin',body:b?JSON.stringify(b):undefined});const j=await r.json().catch(()=>null);return{ok:r.ok,st:r.status,j}};
+loginBtn.onclick=async()=>{const r=await api('POST','/api/v1/auth/login',{email:email.value,password:pass.value});if(!r.ok){loginErr.textContent=r.j?.error?.message||r.st;return}loginCard.hidden=true;listCard.hidden=false;load()};
+async function load(){const r=await api('GET','/api/v1/staff/clients');if(!r.ok){cErr.textContent=r.j?.error?.message||r.st;return}rows.innerHTML=r.j.data.map(c=>`<tr><td>${c.email}</td><td>${c.display_name||''}</td><td><button data-id="${c.id}">→</button></td></tr>`).join('');rows.querySelectorAll('button').forEach(b=>b.onclick=()=>open(b.dataset.id))}
+createBtn.onclick=async()=>{const r=await api('POST','/api/v1/staff/clients',{email:nEmail.value,password:nPass.value,display_name:nName.value});if(!r.ok){cErr.textContent=r.j?.error?.message||r.st;return}cErr.textContent='';load()};
+async function open(id){const r=await api('GET','/api/v1/staff/clients/'+id);if(!r.ok)return;dTitle.textContent=r.j.data.email;dBody.textContent=JSON.stringify(r.j.data,null,1);detailCard.hidden=false}
+backBtn.onclick=()=>detailCard.hidden=true;
+render();
+</script>
+</body>
+</html>
