@@ -135,13 +135,19 @@ all `m2.verify.*@example.test`, clearly fictional).
   recipes as server drafts is a dietitian task, not an auto-approval.
 - EN/ES parity on every screen; bilingual error envelope preserved.
 
-## AI-assisted recipe import — "From link" tab (staging, 2026-11-25)
-Staff pastes a recipe URL → server fetches the page (SSRF-guarded) → model returns a
-uniform JSON draft → editor pre-fills → staff reviews, saves, and approves through the
-normal flow. Imports can only ever land as unreviewed drafts; nothing auto-publishes.
+## AI-assisted recipe import — "From link" + "From file" tabs (staging, 2026-11-25)
+Staff pastes a recipe URL — or uploads a file (print-to-PDF, saved page, notes) —
+the server extracts the text (SSRF-guarded fetch, or pdf-parse/plain/HTML parsing),
+the model returns a uniform JSON draft, the editor pre-fills, and staff reviews,
+saves, and approves through the normal flow. Imports can only ever land as
+unreviewed drafts; nothing auto-publishes.
 - API: `POST /api/v1/staff/recipe-imports/extract {url}` → `{proposal, source_url}`;
-  `POST /api/v1/staff/recipe-imports/photo {revision_id, url}` (draft-only, same guards
-  as uploads). Roles: administrator/dietitian; 10/hr per-user rate limit.
+  `POST /api/v1/staff/recipe-imports/file {filename, mime, data_base64}` →
+  `{proposal, source_url: null}` (accepted: PDF ≤5 MB with magic-byte check,
+  text/plain, text/markdown, text/html; scanned-image PDFs with no readable text
+  get `ai_pdf_empty`); `POST /api/v1/staff/recipe-imports/photo` (draft-only).
+  Roles: administrator/dietitian; per-user rate limit (10/hr default,
+  `AI_IMPORT_RATE_MAX` override).
 - Fetch guards: http/https only, DNS re-resolution with private/loopback/link-local
   (incl. 169.254.x) rejection on every redirect hop, 2 MB cap, 15–20 s timeouts,
   HTML-only for extract / image-only for photo, magic-byte sniff (png/jpg/webp).
@@ -168,7 +174,7 @@ normal flow. Imports can only ever land as unreviewed drafts; nothing auto-publi
 - Tests: T17 (stub provider, no network past DNS): scheme/SSRF/body 422s, support 403,
   anon 401, stub shape, save-with-provenance → submit → approve with
   `verify_nutrition` (provenance chain works), photo 404/409 guards, stub upstream
-  rejection → 502 `ai_rejected`. Full suite 17/17 green on staging host.
+  rejection → 502 `ai_rejected`. Full suite 18/18 green on staging host (T18 covers the file route: real 13 KB PDF parses, txt/html accepted, bad mime + non-PDF bytes rejected, support denied).
 - Live check 2026-11-25: page fetch OK (BBC Good Food 200; EatingWell/Allrecipes/Cookie
   & Kate 403 bot-wall their pages), model call answered HTTP 403 `permission_error`
   "This API key can't call models" while the same key reads Go usage meters fine

@@ -8,6 +8,7 @@ import { query } from '../db.js';
 import { msg } from '../i18n.js';
 import { requireRole, audit, rateLimit } from '../auth.js';
 import { sniffImage } from './catalog.js';
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 const router = Router();
 // AI-assisted recipe import: dietitian and administrator only. Imports ALWAYS
@@ -127,6 +128,11 @@ const proposalItem = z.object({
   unit: z.string().min(1).max(16).default('g'),
   notes: z.string().max(200).default(''),
 });
+
+function aiImportLimit(): number {
+  const v = Number(process.env.AI_IMPORT_RATE_MAX || 10);
+  return Number.isFinite(v) && v > 0 ? Math.floor(v) : 10;
+}
 
 const proposalSchema = z.object({
   title_en: z.string().min(2).max(160),
@@ -250,7 +256,7 @@ async function callAi(pageTitle: string, pageText: string, sessionId: string): P
 // POST /recipe-imports/extract — fetch URL, ask AI, return a DRAFT PROPOSAL.
 // Nothing is saved: the editor pre-fills and staff saves via the normal path.
 router.post('/recipe-imports/extract', async (req, res) => {
-  if (!rateLimit(`ai-import:${req.user!.id}`, 10, 3600_000)) return fail(req, 'locked', 429, res);
+  if (!rateLimit(`ai-import:${req.user!.id}`, aiImportLimit(), 3600_000)) return fail(req, 'locked', 429, res);
   const p = z.object({ url: z.string().min(8).max(2000) }).safeParse(req.body);
   if (!p.success) return fail(req, 'invalid_input', 422, res);
   let pageUrl: URL;
@@ -269,7 +275,7 @@ router.post('/recipe-imports/extract', async (req, res) => {
     } catch (e) {
       return aiError(req, res, e);
     }
-    const v = proposalSchema.safeParse(raw);
+    const v = proposalSchema.safeParse(sanitizeRaw(raw));
     if (!v.success) return fail(req, 'invalid_input', 422, res);
     await audit(req.user!.id, 'recipe_import', pageUrl.toString().slice(0, 200), 'extract_proposal_stub');
     res.json({ data: { proposal: v.data, source_url: pageUrl.toString() }, error: null, request_id: req.id });
@@ -292,12 +298,76 @@ router.post('/recipe-imports/extract', async (req, res) => {
   } catch (e) {
     return aiError(req, res, e);
   }
-  const v = proposalSchema.safeParse(raw);
+  const v = proposalSchema.safeParse(sanitizeRaw(raw));
   if (!v.success) return fail(req, 'invalid_input', 422, res);
   const proposal = v.data;
   if (!proposal.photo_url) proposal.photo_url = image && image.startsWith('http') ? image : null;
   await audit(req.user!.id, 'recipe_import', page.finalUrl.slice(0, 200), 'extract_proposal');
   res.json({ data: { proposal, source_url: page.finalUrl }, error: null, request_id: req.id });
+});
+
+// Drop junk photo URLs before schema validation (a hallucinated value must not
+// sink an otherwise good proposal; files carry no page context for images anyway).
+function sanitizeRaw(raw: unknown): unknown {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const r = raw as Record<string, unknown>;
+    if (typeof r.photo_url !== 'string' || !/^https?:\/\//.test(r.photo_url)) r.photo_url = null;
+  }
+  return raw;
+}
+
+// POST /recipe-imports/file — same as extract, but staff uploads a file
+// (print-to-PDF, saved page, notes) instead of a URL. Accepted: PDF
+// (text-extracted server-side), plain/markdown text, HTML files.
+const FILE_MIMES = ['application/pdf', 'text/plain', 'text/markdown', 'text/html'];
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
+router.post('/recipe-imports/file', async (req, res) => {
+  if (!rateLimit(`ai-import:${req.user!.id}`, aiImportLimit(), 3600_000)) return fail(req, 'locked', 429, res);
+  const p = z.object({
+    filename: z.string().min(1).max(120),
+    mime: z.string().min(1).max(64),
+    data_base64: z.string().min(4).max(7_000_000),
+  }).safeParse(req.body);
+  if (!p.success) return fail(req, 'invalid_input', 422, res);
+  if (!FILE_MIMES.includes(p.data.mime)) return fail(req, 'invalid_input', 422, res);
+  let buf: Buffer;
+  try {
+    buf = Buffer.from(p.data.data_base64, 'base64');
+  } catch {
+    return fail(req, 'invalid_input', 422, res);
+  }
+  if (buf.length === 0 || buf.length > MAX_FILE_BYTES) return fail(req, 'invalid_input', 422, res);
+  let text = '';
+  try {
+    if (p.data.mime === 'application/pdf') {
+      if (buf[0] !== 0x25 || buf[1] !== 0x50 || buf[2] !== 0x44 || buf[3] !== 0x46) throw new Error('bad pdf');
+      const parsed = (await pdfParse(buf)) as { text?: unknown };
+      text = String(parsed.text || '').replace(/\s+/g, ' ').trim().slice(0, 12000);
+    } else if (p.data.mime === 'text/html') {
+      text = htmlToText(buf.toString('utf8')).text;
+    } else {
+      text = buf.toString('utf8').replace(/\s+/g, ' ').trim().slice(0, 12000);
+    }
+  } catch {
+    return fail(req, 'invalid_input', 422, res);
+  }
+  if (!text) {
+    res.status(422).json({ data: null, error: { code: 'ai_pdf_empty', message: msg('ai_pdf_empty', req.locale) }, request_id: req.id });
+    return;
+  }
+  let raw: unknown;
+  try {
+    raw = await callAi(p.data.filename.replace(/\.[a-z0-9]+$/i, '').slice(0, 120), text, `ses_import_file_${req.user!.id}`);
+  } catch (e) {
+    return aiError(req, res, e);
+  }
+  const v = proposalSchema.safeParse(sanitizeRaw(raw));
+  if (!v.success) return fail(req, 'invalid_input', 422, res);
+  const proposal = v.data;
+  proposal.photo_url = null;
+  await audit(req.user!.id, 'recipe_import', p.data.filename.slice(0, 200), 'extract_proposal_file');
+  res.json({ data: { proposal, source_url: null }, error: null, request_id: req.id });
 });
 
 // POST /recipe-imports/photo — download a page image into our media library and

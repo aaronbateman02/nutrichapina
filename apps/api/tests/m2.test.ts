@@ -1,4 +1,5 @@
 import './setup.js';
+import fs from 'node:fs';
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { pool } from '../src/db.js';
@@ -348,6 +349,7 @@ describe('M2 recipe library + menu acceptance', () => {
 
   it('T17 AI URL import: guards, stub extract, draft provenance', async () => {
     process.env.AI_PROVIDER = 'stub';
+    process.env.AI_IMPORT_RATE_MAX = '1000';
     const diet = await loginAs('m2diet@example.com', 'diet-pass-123');
     const badScheme = await diet.post('/api/v1/staff/recipe-imports/extract').send({ url: 'ftp://example.com/r' });
     expect(badScheme.status).toBe(422);
@@ -414,6 +416,26 @@ describe('M2 recipe library + menu acceptance', () => {
     expect(fl.status).toBe(422);
     expect(fl.body.error.code).toBe('ai_fetch_failed');
     delete process.env.AI_STUB_MODE;
+  });
+
+  it('T18 AI file import: PDF/text/HTML parsing, guards', async () => {
+    process.env.AI_PROVIDER = 'stub';
+    const diet = await loginAs('m2diet@example.com', 'diet-pass-123');
+    const pdfB64 = fs.readFileSync(new URL('./fixtures/dummy.pdf', import.meta.url)).toString('base64');
+    const ok = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'dummy.pdf', mime: 'application/pdf', data_base64: pdfB64 });
+    expect(ok.status).toBe(200);
+    expect(ok.body.data.proposal.title_en.length).toBeGreaterThan(1);
+    expect(ok.body.data.source_url).toBeNull();
+    const txt = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.txt', mime: 'text/plain', data_base64: Buffer.from('Chicken soup: boil chicken 20 min. Serves 4.', 'utf8').toString('base64') });
+    expect(txt.status).toBe(200);
+    const html = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.html', mime: 'text/html', data_base64: Buffer.from('<html><head><title>Bean Bowl</title></head><body><p>Beans and rice.</p></body></html>', 'utf8').toString('base64') });
+    expect(html.status).toBe(200);
+    const badMime = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.zip', mime: 'application/zip', data_base64: Buffer.from('PK~~', 'utf8').toString('base64') });
+    expect(badMime.status).toBe(422);
+    const notPdf = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'fake.pdf', mime: 'application/pdf', data_base64: Buffer.from('not a pdf at all, just text', 'utf8').toString('base64') });
+    expect(notPdf.status).toBe(422);
+    const sup = await loginAs('m2support@example.com', 'support-pass-123');
+    expect((await sup.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.txt', mime: 'text/plain', data_base64: 'eA==' })).status).toBe(403);
   });
 
   async function recipeIdOf(slug: string): Promise<string> {

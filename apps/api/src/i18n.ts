@@ -12,6 +12,7 @@ const STR: Record<string, { en: string; es: string }> = {
   locked: { en: 'Too many attempts. Try again later.', es: 'Demasiados intentos. Inténtalo más tarde.' },
   ai_not_configured: { en: 'AI import is not configured. Ask the owner for an AI key.', es: 'La importación con IA no está configurada. Pide una clave de IA al responsable.' },
   ai_rejected: { en: 'AI service refused the request. Check the AI key and subscription.', es: 'El servicio de IA rechazó la solicitud. Revisa la clave y la suscripción.' },
+  ai_pdf_empty: { en: 'No readable text found in that file. If it is a scanned image, type or paste the text instead.', es: 'No se encontró texto legible en ese archivo. Si es una imagen escaneada, escribe o pega el texto.' },
   ai_fetch_blocked: { en: 'This site blocked the recipe import. Try another page or enter the recipe manually.', es: 'Este sitio bloqueó la importación. Prueba con otra página o ingresa la receta manualmente.' },
   ai_fetch_failed: { en: 'Could not download that page. Check the link and try again.', es: 'No se pudo descargar esa página. Revisa el enlace e inténtalo de nuevo.' },
   server_error: { en: 'Something went wrong.', es: 'Algo salió mal.' },
