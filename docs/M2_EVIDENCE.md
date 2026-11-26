@@ -161,7 +161,10 @@ normal flow. Imports can only ever land as unreviewed drafts; nothing auto-publi
   Privacy note: Go retains Gemini 4 Argon requests up to 55 days (abuse monitoring);
   only public page text is ever sent, never customer data.
 - Failure codes (bilingual): `ai_not_configured` 501, `ai_rejected` 502 (upstream
-  auth/entitlement refusal), plus the standard 422/409 guards.
+  auth/entitlement refusal), `ai_fetch_blocked` 422 (site bot-blocks the download —
+  e.g. EatingWell returns 403 to servers), `ai_fetch_failed` 422 (network/timeout),
+  plus the standard 422/409 guards. The editor shows the server message, so staff
+  always know whether to retry, try another page, or enter manually.
 - Tests: T17 (stub provider, no network past DNS): scheme/SSRF/body 422s, support 403,
   anon 401, stub shape, save-with-provenance → submit → approve with
   `verify_nutrition` (provenance chain works), photo 404/409 guards, stub upstream

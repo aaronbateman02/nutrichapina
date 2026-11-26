@@ -404,6 +404,15 @@ describe('M2 recipe library + menu acceptance', () => {
     const rej = await diet.post('/api/v1/staff/recipe-imports/extract').send({ url: 'https://example.com/r' });
     expect(rej.status).toBe(502);
     expect(rej.body.error.code).toBe('ai_rejected');
+    // blocked / failed downloads surface as specific 422s, not generic input errors
+    process.env.AI_STUB_MODE = 'blocked';
+    const blk = await diet.post('/api/v1/staff/recipe-imports/extract').send({ url: 'https://example.com/r' });
+    expect(blk.status).toBe(422);
+    expect(blk.body.error.code).toBe('ai_fetch_blocked');
+    process.env.AI_STUB_MODE = 'fail';
+    const fl = await diet.post('/api/v1/staff/recipe-imports/extract').send({ url: 'https://example.com/r' });
+    expect(fl.status).toBe(422);
+    expect(fl.body.error.code).toBe('ai_fetch_failed');
     delete process.env.AI_STUB_MODE;
   });
 

@@ -30,6 +30,14 @@ function aiError(req: { locale: 'en' | 'es' }, res: { status: (n: number) => { j
     res.status(502).json({ data: null, error: { code: 'ai_rejected', message: msg('ai_rejected', req.locale) }, request_id: (req as unknown as { id: string }).id });
     return;
   }
+  if (em.startsWith('fetch_blocked')) {
+    res.status(422).json({ data: null, error: { code: 'ai_fetch_blocked', message: msg('ai_fetch_blocked', req.locale) }, request_id: (req as unknown as { id: string }).id });
+    return;
+  }
+  if (em.startsWith('fetch_')) {
+    res.status(422).json({ data: null, error: { code: 'ai_fetch_failed', message: msg('ai_fetch_failed', req.locale) }, request_id: (req as unknown as { id: string }).id });
+    return;
+  }
   return fail(req, 'server_error', 500, res);
 }
 
@@ -87,14 +95,14 @@ async function fetchPublic(
       current = new URL(res.headers.get('location') as string, current).toString();
       continue;
     }
-    if (!res.ok) throw new Error('fetch failed');
+    if (!res.ok) throw new Error((res.status === 401 || res.status === 403 || res.status === 429 ? 'fetch_blocked:' : 'fetch_failed:') + res.status);
     const ct = res.headers.get('content-type') || '';
-    if (!opts.expect(ct)) throw new Error('bad content');
+    if (!opts.expect(ct)) throw new Error('fetch_content');
     const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length === 0 || buf.length > opts.maxBytes) throw new Error('bad size');
+    if (buf.length === 0 || buf.length > opts.maxBytes) throw new Error('fetch_size');
     return { buffer: buf, contentType: ct, finalUrl: current };
   }
-  throw new Error('too many redirects');
+  throw new Error('fetch_failed:redirects');
 }
 
 const expectHtml = (ct: string): boolean => ct.toLowerCase().includes('text/html');
@@ -162,6 +170,8 @@ async function callAi(pageTitle: string, pageText: string, sessionId: string): P
   const provider = process.env.AI_PROVIDER || '';
   if (provider === 'stub') {
     if (process.env.AI_STUB_MODE === 'reject') throw new Error('ai_upstream_403');
+    if (process.env.AI_STUB_MODE === 'blocked') throw new Error('fetch_blocked:403');
+    if (process.env.AI_STUB_MODE === 'fail') throw new Error('fetch_failed:timeout');
     return {
       title_en: 'Stub Imported Bowl', title_es: 'Tazón importado (stub)',
       description_en: 'stub', description_es: 'stub',
@@ -269,7 +279,9 @@ router.post('/recipe-imports/extract', async (req, res) => {
   try {
     const dl = await fetchPublic(p.data.url, { maxBytes: 2 * 1024 * 1024, timeoutMs: 15000, expect: expectHtml });
     page = { buffer: dl.buffer, finalUrl: dl.finalUrl };
-  } catch {
+  } catch (e) {
+    const em = (e as Error).message || '';
+    if (em.startsWith('fetch_')) return aiError(req, res, e);
     return fail(req, 'invalid_input', 422, res);
   }
   const { title, text, image } = htmlToText(page.buffer.toString('utf8'));
@@ -299,7 +311,9 @@ router.post('/recipe-imports/photo', async (req, res) => {
   let dl: { buffer: Buffer; contentType: string };
   try {
     dl = await fetchPublic(p.data.url, { maxBytes: 2 * 1024 * 1024, timeoutMs: 20000, expect: expectImage });
-  } catch {
+  } catch (e) {
+    const em = (e as Error).message || '';
+    if (em.startsWith('fetch_')) return aiError(req, res, e);
     return fail(req, 'invalid_input', 422, res);
   }
   const ct = dl.contentType.toLowerCase();
