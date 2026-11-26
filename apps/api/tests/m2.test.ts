@@ -428,6 +428,9 @@ describe('M2 recipe library + menu acceptance', () => {
     expect(ok.body.data.source_url).toBeNull();
     const txt = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.txt', mime: 'text/plain', data_base64: Buffer.from('Chicken soup: boil chicken 20 min. Serves 4.', 'utf8').toString('base64') });
     expect(txt.status).toBe(200);
+    // oversized-for-default-limits payload must pass the scoped body parser (~193KB base64)
+    const big = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'big.txt', mime: 'text/plain', data_base64: Buffer.from('Chicken soup ingredient line. '.repeat(5000), 'utf8').toString('base64') });
+    expect(big.status).toBe(200);
     const html = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.html', mime: 'text/html', data_base64: Buffer.from('<html><head><title>Bean Bowl</title></head><body><p>Beans and rice.</p></body></html>', 'utf8').toString('base64') });
     expect(html.status).toBe(200);
     const badMime = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.zip', mime: 'application/zip', data_base64: Buffer.from('PK~~', 'utf8').toString('base64') });

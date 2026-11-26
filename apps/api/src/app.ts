@@ -21,6 +21,11 @@ export function buildApp(): express.Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(cookieParser());
+  // Import/upload routes accept file payloads (base64); scoped here so the
+  // tight 64kb default still protects auth and form endpoints. body-parser
+  // skips re-parsing (req._body) when the global parser runs after these.
+  app.use('/api/v1/staff/recipe-imports/file', express.json({ limit: '8mb' }));
+  app.use('/api/v1/staff/uploads', express.json({ limit: '4mb' }));
   app.use(express.json({ limit: '64kb' }));
   app.use((req, _res, next) => {
     req.id = randomUUID();

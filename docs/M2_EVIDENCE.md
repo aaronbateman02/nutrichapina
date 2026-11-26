@@ -174,7 +174,8 @@ unreviewed drafts; nothing auto-publishes.
 - Tests: T17 (stub provider, no network past DNS): scheme/SSRF/body 422s, support 403,
   anon 401, stub shape, save-with-provenance → submit → approve with
   `verify_nutrition` (provenance chain works), photo 404/409 guards, stub upstream
-  rejection → 502 `ai_rejected`. Full suite 18/18 green on staging host (T18 covers the file route: real 13 KB PDF parses, txt/html accepted, bad mime + non-PDF bytes rejected, support denied).
+  rejection → 502 `ai_rejected`. Full suite 18/18 green on staging host (T18 covers the file route: real 13 KB PDF parses, txt/html accepted, bad mime + non-PDF bytes rejected, support denied, ~193 KB regression case for the body-parser limits).
+- Payload limits (fixed 2026-11-26): the 64 KB Express default 413'd real PDFs and staging nginx defaulted to 1 MB. Per-route Express parsers now (8 MB file-import, 4 MB photo upload; 64 KB default kept elsewhere) + `client_max_body_size 10m` in the staging vhost only (prod untouched). Live proof: 389 KB upload passes transport; junk text cleanly 422s with server-logged schema paths; the owner's real wraps recipe text extracts fully (11 items, 2+2 steps, nutrition, allergens milk+wheat).
 - Live check 2026-11-25: page fetch OK (BBC Good Food 200; EatingWell/Allrecipes/Cookie
   & Kate 403 bot-wall their pages), model call answered HTTP 403 `permission_error`
   "This API key can't call models" while the same key reads Go usage meters fine
