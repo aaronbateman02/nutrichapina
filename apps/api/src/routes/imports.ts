@@ -121,12 +121,25 @@ function htmlToText(html: string): { title: string; text: string; image: string 
 }
 
 // ---------- uniform proposal schema (what the editor consumes) ----------
+// Coerce the model's occasional explicit nulls (zod defaults only cover missing
+// keys): optional strings become '', unknown count units become 'unit'.
+const optStr = (max: number) =>
+  z.preprocess((v) => (typeof v === 'string' ? v : ''), z.string().max(max));
+const unitStr = z.preprocess(
+  (v) => (typeof v === 'string' && v.length > 0 && v.length <= 16 ? v : 'unit'),
+  z.string().min(1).max(16),
+);
+const qtyNum = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() !== '' ? Number(v) : v),
+  z.number().positive().finite().nullable().default(null),
+);
+
 const proposalItem = z.object({
   name_en: z.string().min(1).max(200),
-  name_es: z.string().max(200).default(''),
-  quantity: z.number().positive().finite().nullable().default(null),
-  unit: z.string().min(1).max(16).default('g'),
-  notes: z.string().max(200).default(''),
+  name_es: optStr(200),
+  quantity: qtyNum,
+  unit: unitStr,
+  notes: optStr(200),
 });
 
 function aiImportLimit(): number {
@@ -137,8 +150,8 @@ function aiImportLimit(): number {
 const proposalSchema = z.object({
   title_en: z.string().min(2).max(160),
   title_es: z.string().min(2).max(160),
-  description_en: z.string().max(2000).default(''),
-  description_es: z.string().max(2000).default(''),
+  description_en: optStr(2000),
+  description_es: optStr(2000),
   servings: z.number().int().min(1).max(24).default(1),
   active_minutes: z.number().int().min(0).max(600).nullable().default(null),
   total_minutes: z.number().int().min(0).max(1440).nullable().default(null),
@@ -276,7 +289,7 @@ router.post('/recipe-imports/extract', async (req, res) => {
       return aiError(req, res, e);
     }
     const v = proposalSchema.safeParse(sanitizeRaw(raw));
-    if (!v.success) return fail(req, 'invalid_input', 422, res);
+    if (!v.success) { console.error(req.id, 'import_schema', JSON.stringify(v.error.issues.map((i) => i.path.join('.')))); return fail(req, 'invalid_input', 422, res); }
     await audit(req.user!.id, 'recipe_import', pageUrl.toString().slice(0, 200), 'extract_proposal_stub');
     res.json({ data: { proposal: v.data, source_url: pageUrl.toString() }, error: null, request_id: req.id });
     return;
@@ -299,7 +312,7 @@ router.post('/recipe-imports/extract', async (req, res) => {
     return aiError(req, res, e);
   }
   const v = proposalSchema.safeParse(sanitizeRaw(raw));
-  if (!v.success) return fail(req, 'invalid_input', 422, res);
+  if (!v.success) { console.error(req.id, 'import_schema', JSON.stringify(v.error.issues.map((i) => i.path.join('.')))); return fail(req, 'invalid_input', 422, res); }
   const proposal = v.data;
   if (!proposal.photo_url) proposal.photo_url = image && image.startsWith('http') ? image : null;
   await audit(req.user!.id, 'recipe_import', page.finalUrl.slice(0, 200), 'extract_proposal');
@@ -363,7 +376,7 @@ router.post('/recipe-imports/file', async (req, res) => {
     return aiError(req, res, e);
   }
   const v = proposalSchema.safeParse(sanitizeRaw(raw));
-  if (!v.success) return fail(req, 'invalid_input', 422, res);
+  if (!v.success) { console.error(req.id, 'import_schema', JSON.stringify(v.error.issues.map((i) => i.path.join('.')))); return fail(req, 'invalid_input', 422, res); }
   const proposal = v.data;
   proposal.photo_url = null;
   await audit(req.user!.id, 'recipe_import', p.data.filename.slice(0, 200), 'extract_proposal_file');

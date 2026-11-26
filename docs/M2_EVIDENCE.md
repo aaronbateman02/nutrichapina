@@ -180,8 +180,11 @@ unreviewed drafts; nothing auto-publishes.
   "This API key can't call models" while the same key reads Go usage meters fine
   (monthly 16%). Diagnosis: key is valid but lacks models scope — owner action: use a
   personal key from the Go-subscribed workspace (or service-account key with models
-  access). One-command retest once fixed: sign in as dietitian → New Recipe →
-  From link → Extract.
+  access). Superseded 2026-11-26: entitled key works — BBC extract → 200 full
+  bilingual proposal (15 items, 3+3 steps, page-stated nutrition, allergens
+  soy+peanut, photo URL); saved as draft, submitted, approve correctly rejected
+  with 422 free-text gates; staging cleaned. Schema now null-coerces model nulls
+  (unknown units → `unit`) and logs failing paths server-side.
 - UI: `liveRecipeEditor` gained Manual/From-link tabs (new drafts only), extract
   status + proposal summary, "Use this draft" pre-fill, photo fetched at save when
   present. Startup smoke test still green.
