@@ -346,6 +346,67 @@ describe('M2 recipe library + menu acceptance', () => {
     expect(archEarly.status).toBe(409);
   });
 
+  it('T17 AI URL import: guards, stub extract, draft provenance', async () => {
+    process.env.AI_PROVIDER = 'stub';
+    const diet = await loginAs('m2diet@example.com', 'diet-pass-123');
+    const badScheme = await diet.post('/api/v1/staff/recipe-imports/extract').send({ url: 'ftp://example.com/r' });
+    expect(badScheme.status).toBe(422);
+    const ssrf = await diet.post('/api/v1/staff/recipe-imports/extract').send({ url: 'http://127.0.0.1:9/recipe' });
+    expect(ssrf.status).toBe(422);
+    const badBody = await diet.post('/api/v1/staff/recipe-imports/extract').send({});
+    expect(badBody.status).toBe(422);
+    const sup = await loginAs('m2support@example.com', 'support-pass-123');
+    const denied = await sup.post('/api/v1/staff/recipe-imports/extract').send({ url: 'https://example.com/r' });
+    expect(denied.status).toBe(403);
+    const unauth = await request(app).post('/api/v1/staff/recipe-imports/extract').send({ url: 'https://example.com/r' });
+    expect(unauth.status).toBe(401);
+
+    const ok = await diet.post('/api/v1/staff/recipe-imports/extract').send({ url: 'https://example.com/some-recipe' });
+    expect(ok.status).toBe(200);
+    const prop = ok.body.data.proposal;
+    expect(prop.title_en.length).toBeGreaterThan(1);
+    expect(prop.title_es.length).toBeGreaterThan(1);
+    expect(prop.steps_en.length).toBeGreaterThan(0);
+    expect(prop.steps_es.length).toBeGreaterThan(0);
+    expect(prop.items.length).toBeGreaterThan(0);
+    expect(ok.body.data.source_url).toContain('https://example.com/');
+
+    // save the proposal as a draft with provenance (items resolved to catalog ids,
+    // as the editor does; unresolved free text would block approval per T12)
+    const created = await diet.post('/api/v1/staff/recipes').send({
+      slug: 'm2-import-test', title_en: prop.title_en, title_es: prop.title_es,
+      description_en: prop.description_en || '', description_es: prop.description_es || '',
+      steps_en: prop.steps_en, steps_es: prop.steps_es,
+      servings: prop.servings,
+      items: [{ ingredient_id: ingChicken, quantity: 500, unit: 'g' }, { ingredient_id: ingRice, quantity: 200, unit: 'g' }],
+      nutrition: { ...(prop.nutrition || {}), provenance: { source_url: ok.body.data.source_url, method: 'ai', extracted_at: new Date().toISOString() } },
+      source_url: ok.body.data.source_url, source_method: 'ai_extract',
+    });
+    expect(created.status).toBe(201);
+    const revDraft = created.body.data.revision_id as string;
+    const det = await diet.get(`/api/v1/staff/recipes/revisions/${revDraft}`);
+    expect(det.body.data.revision.source_method).toBe('ai_extract');
+    expect(det.body.data.revision.source_url).toBe(ok.body.data.source_url);
+    // AI provenance + human review => verifiable, exactly like a manual figure
+    await diet.post(`/api/v1/staff/recipes/revisions/${revDraft}/submit`);
+    const appr = await diet.post(`/api/v1/staff/recipes/revisions/${revDraft}/approve`).send({ allergens_reviewed: true, verify_nutrition: true });
+    expect(appr.status).toBe(200);
+
+    // photo endpoint guards (no network): unknown revision 404, published 409
+    const noRev = await diet.post('/api/v1/staff/recipe-imports/photo').send({ revision_id: '00000000-0000-0000-0000-000000000000', url: 'https://example.com/x.png' });
+    expect(noRev.status).toBe(404);
+    const pubRev = rev1;
+    const onPub = await diet.post('/api/v1/staff/recipe-imports/photo').send({ revision_id: pubRev, url: 'https://example.com/x.png' });
+    expect(onPub.status).toBe(409);
+
+    // upstream rejection surfaces as 502 ai_rejected (stub failure mode)
+    process.env.AI_STUB_MODE = 'reject';
+    const rej = await diet.post('/api/v1/staff/recipe-imports/extract').send({ url: 'https://example.com/r' });
+    expect(rej.status).toBe(502);
+    expect(rej.body.error.code).toBe('ai_rejected');
+    delete process.env.AI_STUB_MODE;
+  });
+
   async function recipeIdOf(slug: string): Promise<string> {
     const r = await pool.query<{ id: string }>('SELECT id FROM recipes WHERE slug=$1', [slug]);
     return r.rows[0].id;

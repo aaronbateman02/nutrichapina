@@ -135,6 +135,48 @@ all `m2.verify.*@example.test`, clearly fictional).
   recipes as server drafts is a dietitian task, not an auto-approval.
 - EN/ES parity on every screen; bilingual error envelope preserved.
 
+## AI-assisted recipe import — "From link" tab (staging, 2026-11-25)
+Staff pastes a recipe URL → server fetches the page (SSRF-guarded) → model returns a
+uniform JSON draft → editor pre-fills → staff reviews, saves, and approves through the
+normal flow. Imports can only ever land as unreviewed drafts; nothing auto-publishes.
+- API: `POST /api/v1/staff/recipe-imports/extract {url}` → `{proposal, source_url}`;
+  `POST /api/v1/staff/recipe-imports/photo {revision_id, url}` (draft-only, same guards
+  as uploads). Roles: administrator/dietitian; 10/hr per-user rate limit.
+- Fetch guards: http/https only, DNS re-resolution with private/loopback/link-local
+  (incl. 169.254.x) rejection on every redirect hop, 2 MB cap, 15–20 s timeouts,
+  HTML-only for extract / image-only for photo, magic-byte sniff (png/jpg/webp).
+- Proposal schema (strict zod): bilingual titles/descriptions/steps, servings,
+  items `{name_en, name_es, quantity, unit, notes}`, nutrition only if stated
+  (never invented), allergen hints, photo URL. Free-text items block approval until
+  resolved to catalog ids (existing T12 gate); nutrition needs provenance + human
+  review to verify (existing T13 gate).
+- Provenance: migration 009 adds `recipe_revisions.source_url` + `source_method`
+  (`manual|duplicate|ai_extract`); saved drafts carry it, visible as an
+  "Imported from link" pill in the recipe drawer; revision copies preserve it.
+- Provider: owner's OpenCode Go subscription via `POST
+  https://opencode.ai/inference/go/openai/v1/chat/completions`, model
+  `gemini-4-argon` (IDs verified against the live `/v1/models` catalog), Bearer key
+  from staging `api.env` (`AI_PROVIDER=opencode_go`, `AI_MODEL`, `AI_API_KEY` — host
+  only, never in repo). Stable per-user `x-opencode-session` sent as Go requires.
+  Privacy note: Go retains Gemini 4 Argon requests up to 55 days (abuse monitoring);
+  only public page text is ever sent, never customer data.
+- Failure codes (bilingual): `ai_not_configured` 501, `ai_rejected` 502 (upstream
+  auth/entitlement refusal), plus the standard 422/409 guards.
+- Tests: T17 (stub provider, no network past DNS): scheme/SSRF/body 422s, support 403,
+  anon 401, stub shape, save-with-provenance → submit → approve with
+  `verify_nutrition` (provenance chain works), photo 404/409 guards, stub upstream
+  rejection → 502 `ai_rejected`. Full suite 17/17 green on staging host.
+- Live check 2026-11-25: page fetch OK (BBC Good Food 200; EatingWell/Allrecipes/Cookie
+  & Kate 403 bot-wall their pages), model call answered HTTP 403 `permission_error`
+  "This API key can't call models" while the same key reads Go usage meters fine
+  (monthly 16%). Diagnosis: key is valid but lacks models scope — owner action: use a
+  personal key from the Go-subscribed workspace (or service-account key with models
+  access). One-command retest once fixed: sign in as dietitian → New Recipe →
+  From link → Extract.
+- UI: `liveRecipeEditor` gained Manual/From-link tabs (new drafts only), extract
+  status + proposal summary, "Use this draft" pre-fill, photo fetched at save when
+  present. Startup smoke test still green.
+
 ## Security / privacy
 - Staff routes `requireRole('administrator','dietitian')`; approve/publish double-checks
   role server-side; support 403, customer 403, anon 401.

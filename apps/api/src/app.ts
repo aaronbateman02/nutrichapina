@@ -8,6 +8,7 @@ import meRoutes from './routes/me.js';
 import staffRoutes from './routes/staff.js';
 import catalogRoutes from './routes/catalog.js';
 import programRoutes from './routes/programs.js';
+import importRoutes from './routes/imports.js';
 import debugRoutes from './routes/debug.js';
 
 declare global {
@@ -64,6 +65,7 @@ export function buildApp(): express.Express {
   app.use('/api/v1/staff', staffRoutes);
   app.use('/api/v1/staff', catalogRoutes);
   app.use('/api/v1/staff', programRoutes);
+  app.use('/api/v1/staff', importRoutes);
   if (process.env.ALLOW_DEBUG_OUTBOX === 'true') app.use('/api/v1/_debug', debugRoutes);
 
   app.use('/api', (req, res) => {

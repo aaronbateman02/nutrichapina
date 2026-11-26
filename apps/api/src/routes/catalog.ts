@@ -107,6 +107,8 @@ const recipeBody = z.object({
   difficulty: z.enum(['easy', 'moderate', 'advanced']).nullable().optional(),
   items: z.array(recipeItem).max(60).default([]),
   nutrition: z.record(z.string(), z.unknown()).nullable().optional(),
+  source_url: z.string().url().max(2000).optional(),
+  source_method: z.enum(['manual', 'duplicate', 'ai_extract']).optional(),
 });
 
 async function getRevision(revId: string): Promise<Record<string, unknown> | null> {
@@ -158,8 +160,8 @@ router.post('/recipes', async (req, res) => {
   const rec = await query<{ id: string }>('INSERT INTO recipes(slug,created_by) VALUES ($1,$2) RETURNING id', [v.slug, req.user!.id]);
   const recipeId: string = rec.rows[0].id;
   const rev = await query<{ id: string }>(
-    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition) VALUES ($1,1,$2,$3,$4,$5,$6,$7) RETURNING id',
-    [recipeId, 'draft', v.servings, v.active_minutes ?? null, v.total_minutes ?? null, v.difficulty ?? null, v.nutrition ? JSON.stringify(v.nutrition) : null],
+    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition,source_url,source_method) VALUES ($1,1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id',
+    [recipeId, 'draft', v.servings, v.active_minutes ?? null, v.total_minutes ?? null, v.difficulty ?? null, v.nutrition ? JSON.stringify(v.nutrition) : null, v.source_url ?? null, v.source_method ?? 'manual'],
   );
   const revId: string = rev.rows[0].id;
   await query('INSERT INTO recipe_contents(revision_id,locale,title,description,steps) VALUES ($1,$2,$3,$4,$5),($1,$6,$7,$8,$9)',
@@ -301,8 +303,8 @@ router.post('/recipes/:id/revisions', async (req, res) => {
   if (!latest.rowCount) return fail(req, 'not_found', 404, res);
   const src = latest.rows[0];
   const rev = await query<{ id: string }>(
-    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition) SELECT recipe_id,$1,$2,servings,active_minutes,total_minutes,difficulty,nutrition FROM recipe_revisions WHERE id=$3 RETURNING id',
-    [src.revision + 1, 'draft', src.id],
+    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition,source_url,source_method) SELECT recipe_id,$1,$2,servings,active_minutes,total_minutes,difficulty,nutrition,source_url,$3 FROM recipe_revisions WHERE id=$4 RETURNING id',
+    [src.revision + 1, 'draft', 'manual', src.id],
   );
   const newId: string = rev.rows[0].id;
   await query('INSERT INTO recipe_contents(revision_id,locale,title,description,steps) SELECT $1,locale,title,description,steps FROM recipe_contents WHERE revision_id=$2', [newId, src.id]);
@@ -314,7 +316,7 @@ router.post('/recipes/:id/revisions', async (req, res) => {
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? '/srv/uploads';
 const ALLOWED_UPLOADS: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
-function sniffImage(buf: Buffer, mime: string): boolean {
+export function sniffImage(buf: Buffer, mime: string): boolean {
   if (mime === 'image/png') return buf.length > 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
   if (mime === 'image/jpeg') return buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
   if (mime === 'image/webp') return buf.length > 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP';
@@ -438,8 +440,8 @@ router.post('/recipes/:id/duplicate', async (req, res) => {
   const rec = await query<{ id: string }>('INSERT INTO recipes(slug,created_by) VALUES ($1,$2) RETURNING id', [p.data.slug, req.user!.id]);
   const newRecipeId: string = rec.rows[0].id;
   const rev = await query<{ id: string }>(
-    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition) SELECT $1,1,$2,servings,active_minutes,total_minutes,difficulty,nutrition FROM recipe_revisions WHERE id=$3 RETURNING id',
-    [newRecipeId, 'draft', latest.rows[0].id],
+    'INSERT INTO recipe_revisions(recipe_id,revision,status,servings,active_minutes,total_minutes,difficulty,nutrition,source_url,source_method) SELECT $1,1,$2,servings,active_minutes,total_minutes,difficulty,nutrition,source_url,$3 FROM recipe_revisions WHERE id=$4 RETURNING id',
+    [newRecipeId, 'draft', 'duplicate', latest.rows[0].id],
   );
   const newRevId: string = rev.rows[0].id;
   await query('INSERT INTO recipe_contents(revision_id,locale,title,description,steps) SELECT $1,locale,title,description,steps FROM recipe_contents WHERE revision_id=$2', [newRevId, latest.rows[0].id]);

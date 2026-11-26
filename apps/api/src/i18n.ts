@@ -10,6 +10,8 @@ const STR: Record<string, { en: string; es: string }> = {
   bad_credentials: { en: 'Email or password is incorrect.', es: 'El correo o la contraseña son incorrectos.' },
   unverified: { en: 'Verify your email first.', es: 'Verifica tu correo primero.' },
   locked: { en: 'Too many attempts. Try again later.', es: 'Demasiados intentos. Inténtalo más tarde.' },
+  ai_not_configured: { en: 'AI import is not configured. Ask the owner for an AI key.', es: 'La importación con IA no está configurada. Pide una clave de IA al responsable.' },
+  ai_rejected: { en: 'AI service refused the request. Check the AI key and subscription.', es: 'El servicio de IA rechazó la solicitud. Revisa la clave y la suscripción.' },
   server_error: { en: 'Something went wrong.', es: 'Algo salió mal.' },
 };
 
