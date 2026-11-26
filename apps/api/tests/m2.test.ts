@@ -447,6 +447,49 @@ describe('M2 recipe library + menu acceptance', () => {
     expect((await sup.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.txt', mime: 'text/plain', data_base64: 'eA==' })).status).toBe(403);
   });
 
+  it('T19 draft delete: revision and recipe guards', async () => {
+    process.env.AUTH_LOGIN_RATE_MAX = '1000';
+    const diet = await loginAs('m2diet@example.com', 'diet-pass-123');
+    const mkDraft = (slug: string) => diet.post('/api/v1/staff/recipes').send({
+      slug, title_en: 'Del', title_es: 'Borrar',
+      description_en: 'd', description_es: 'd', steps_en: ['x'], steps_es: ['x'],
+      servings: 1, items: [{ ingredient_id: ingChicken, quantity: 10, unit: 'g' }],
+    });
+    // two draft revisions: delete one, recipe survives
+    const c = await mkDraft('m2-del-test');
+    const rid = c.body.data.id as string;
+    const revA = c.body.data.revision_id as string;
+    const nr = await diet.post(`/api/v1/staff/recipes/${rid}/revisions`).send({});
+    const revB = nr.body.data.revision_id as string;
+    const delB = await diet.delete(`/api/v1/staff/recipes/revisions/${revB}`).send();
+    expect(delB.status).toBe(200);
+    expect(delB.body.data.deleted_recipe).toBe(false);
+    expect((await diet.get(`/api/v1/staff/recipes/revisions/${revA}`)).status).toBe(200);
+    // delete the last revision => whole recipe gone
+    const delA = await diet.delete(`/api/v1/staff/recipes/revisions/${revA}`).send();
+    expect(delA.status).toBe(200);
+    expect(delA.body.data.deleted_recipe).toBe(true);
+    expect((await diet.get(`/api/v1/staff/recipes/revisions/${revA}`)).status).toBe(404);
+    // published history is never deletable
+    const cp = await mkDraft('m2-del-pub');
+    const prev = cp.body.data.revision_id as string;
+    await diet.post(`/api/v1/staff/recipes/revisions/${prev}/submit`).send({});
+    await diet.post(`/api/v1/staff/recipes/revisions/${prev}/approve`).send({ allergens_reviewed: true });
+    await diet.post(`/api/v1/staff/recipes/revisions/${prev}/publish`).send({});
+    expect((await diet.delete(`/api/v1/staff/recipes/revisions/${prev}`).send()).status).toBe(409);
+    expect((await diet.delete(`/api/v1/staff/recipes/${cp.body.data.id as string}`).send()).status).toBe(409);
+    // all-draft recipe deletable by id
+    const c2 = await mkDraft('m2-del-all');
+    expect((await diet.delete(`/api/v1/staff/recipes/${c2.body.data.id as string}`).send()).status).toBe(200);
+    const gone = await diet.get(`/api/v1/staff/recipes/${c2.body.data.id as string}/revisions`);
+    expect(gone.body.data).toEqual([]);
+    // roles and missing records
+    const sup = await loginAs('m2support@example.com', 'support-pass-123');
+    expect((await sup.delete('/api/v1/staff/recipes/00000000-0000-0000-0000-000000000000').send()).status).toBe(403);
+    expect((await request(app).delete('/api/v1/staff/recipes/00000000-0000-0000-0000-000000000000').send()).status).toBe(401);
+    expect((await diet.delete('/api/v1/staff/recipes/00000000-0000-0000-0000-000000000000').send()).status).toBe(404);
+  });
+
   async function recipeIdOf(slug: string): Promise<string> {
     const r = await pool.query<{ id: string }>('SELECT id FROM recipes WHERE slug=$1', [slug]);
     return r.rows[0].id;

@@ -503,4 +503,36 @@ router.delete('/substitutions/:subId', async (req, res) => {
   res.json({ data: { ok: true }, error: null, request_id: req.id });
 });
 
+router.delete('/recipes/revisions/:revId', async (req, res) => {
+  const rev = await getRevision(req.params.revId);
+  if (!rev) return fail(req, 'not_found', 404, res);
+  if (!['draft', 'changes_requested', 'ready_for_review'].includes(rev.status as string)) return fail(req, 'conflict', 409, res);
+  const recipeId = (rev as { recipe_id: string }).recipe_id;
+  const count = await query<{ n: string }>('SELECT COUNT(*) AS n FROM recipe_revisions WHERE recipe_id=$1', [recipeId]);
+  if (Number(count.rows[0].n) <= 1) {
+    await query('DELETE FROM recipe_approved_substitutions WHERE recipe_id=$1', [recipeId]);
+    await query('DELETE FROM recipes WHERE id=$1', [recipeId]);
+    await audit(req.user!.id, 'recipe', recipeId, 'delete_last_draft');
+    res.json({ data: { ok: true, deleted_recipe: true }, error: null, request_id: req.id });
+    return;
+  }
+  await query('DELETE FROM recipe_revisions WHERE id=$1', [req.params.revId]);
+  await audit(req.user!.id, 'recipe_revision', req.params.revId, 'delete_draft');
+  res.json({ data: { ok: true, deleted_recipe: false }, error: null, request_id: req.id });
+});
+
+// DELETE /recipes/:id — removes a recipe ONLY when it has no approved, published
+// or archived history (pure draft work). Anything a customer could have seen is
+// archivable, never deletable. Slots and plans reference published revisions
+// only, so an all-draft recipe is unreferenced by construction.
+router.delete('/recipes/:id', async (req, res) => {
+  const cur = await query<{ status: string }>('SELECT status FROM recipe_revisions WHERE recipe_id=$1', [req.params.id]);
+  if (!cur.rowCount) return fail(req, 'not_found', 404, res);
+  if (cur.rows.some((r) => ['approved', 'published', 'archived'].includes(r.status))) return fail(req, 'conflict', 409, res);
+  await query('DELETE FROM recipe_approved_substitutions WHERE recipe_id=$1', [req.params.id]);
+  await query('DELETE FROM recipes WHERE id=$1', [req.params.id]);
+  await audit(req.user!.id, 'recipe', req.params.id, 'delete_drafts');
+  res.json({ data: { ok: true }, error: null, request_id: req.id });
+});
+
 export default router;

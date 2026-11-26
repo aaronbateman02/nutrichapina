@@ -159,8 +159,17 @@ async function openLiveIngredient(id){
   if(!g)return;
   ui.liveIngredient=Object.assign({conversions:[]},g);ui.detail=null;ui.modal=null;paint();
 }
-async function revAction(kind){
+async function deleteLiveDraft(){
   const d=ui.liveRecipe;if(!d||!d.revision)return;
+  const id=d.revision.id;
+  if(!window.confirm(B('Delete this draft? Published history is never deletable.','¿Eliminar este borrador? El historial publicado nunca se puede eliminar.')))return;
+  try{
+    const r=await api('/api/v1/staff/recipes/revisions/'+encodeURIComponent(id),{method:'DELETE'});
+    if(r.ok){ui.liveRecipe=null;ui.modal=null;toast(B('Draft deleted.','Borrador eliminado.'));await refreshLiveCatalog()}
+    else toast((r.j&&r.j.error&&r.j.error.message)||B('Delete rejected by server.','Eliminación rechazada.'));
+  }catch(e){toast(B('Request failed.','La solicitud falló.'))}
+}
+async function revAction(kind){  const d=ui.liveRecipe;if(!d||!d.revision)return;
   const id=d.revision.id;
   try{
     let r;
@@ -285,6 +294,7 @@ case 'staff-recipe-delrow':if(ui.recipeDraft)ui.recipeDraft.items.splice(Number(
 case 'staff-recipe-submit':revAction('submit');break;
 case 'staff-recipe-publish':revAction('publish');break;
 case 'staff-recipe-newrev':revAction('newrev');break;
+case 'staff-recipe-delete':deleteLiveDraft();break;
 case 'staff-recipe-approve':open('staff-approve');break;
 case 'staff-ingredient-new':open('staff-ingredient');break;
 case 'live-ingredient':openLiveIngredient(id);break;
@@ -414,7 +424,7 @@ function liveRecipeDrawer(d){
   ${issues.length?`<div class="notice warn mt">${i('alert')}<div><strong>${B('Fix before approval:','Corrige antes de aprobar:')}</strong> ${escapeHTML(issues.map(x=>{const m=/^item:([^:]+):free_text$/.exec(x.field||'');if(!m)return x.field;const it=(d.items||[]).find(y=>y.id===m[1]);const nm=it&&(it.free_text||it.name||it.canonical_name);return nm?`${B('Unresolved ingredient','Ingrediente sin resolver')}: ${nm}`:x.field}).join(', '))}</div></div>`:''}
   ${allergens.length?`<div class="notice mt">${i('alert')}<div><strong>${B('Allergens detected:','Alérgenos detectados:')}</strong> ${escapeHTML(allergens.join(', '))}</div></div>`:''}
   <div class="section-head"><h2>${B('Ingredients','Ingredientes')}</h2></div>${(d.images||[]).map(y=>`<img src="${escapeHTML(y.path)}" alt="${escapeHTML(y.alt||'')}" style="width:100%;border-radius:10px;margin:0 0 14px">`).join('')}<div class="stack">${items||`<p class="muted">${B('No ingredients.','Sin ingredientes.')}</p>`}</div>${contentBlock('en')}${contentBlock('es')}
-  <div class="detail-actions">${canEdit?uiButton('staff-recipe-edit',B('Edit draft','Editar borrador'),'ghost','','plus'):''}${r.status==='draft'||r.status==='changes_requested'?uiButton('staff-recipe-submit',B('Submit for review','Enviar a revisión'),'ghost','','arrow'):''}${uiButton('staff-recipe-approve',B('Approve','Aprobar'),'ghost','','check')}${r.status==='approved'?uiButton('staff-recipe-publish',B('Publish','Publicar'),'ghost','','check'):''}${uiButton('staff-recipe-newrev',B('New revision','Nueva revisión'),'ghost','','refresh')}</div>
+  <div class="detail-actions">${canEdit?uiButton('staff-recipe-edit',B('Edit draft','Editar borrador'),'ghost','','plus'):''}${r.status==='draft'||r.status==='changes_requested'?uiButton('staff-recipe-submit',B('Submit for review','Enviar a revisión'),'ghost','','arrow'):''}${uiButton('staff-recipe-approve',B('Approve','Aprobar'),'ghost','','check')}${r.status==='approved'?uiButton('staff-recipe-publish',B('Publish','Publicar'),'ghost','','check'):''}${['draft','changes_requested','ready_for_review'].includes(r.status)?uiButton('staff-recipe-delete',B('Delete draft','Eliminar borrador'),'ghost','','close'):''}${uiButton('staff-recipe-newrev',B('New revision','Nueva revisión'),'ghost','','refresh')}</div>
   <div class="section-head"><h2>${B('Versions','Versiones')}</h2></div><div class="flex">${verHist}</div>
   </section></div>`;
 }

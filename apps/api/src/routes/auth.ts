@@ -61,7 +61,8 @@ router.post('/verify-email', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-  if (!rateLimit(`login:${req.ip}`, 20, 600_000)) return err(req, 'locked', 429, res);
+  const loginMax = Number(process.env.AUTH_LOGIN_RATE_MAX || 20);
+  if (!rateLimit(`login:${req.ip}`, Number.isFinite(loginMax) && loginMax > 0 ? Math.floor(loginMax) : 20, 600_000)) return err(req, 'locked', 429, res);
   const p = z.object({ email: Email, password: z.string().min(1).max(128), token: z.string().regex(/^\d{6}$/).optional() }).safeParse(req.body);
   if (!p.success) return err(req, 'invalid_input', 422, res);
   const u = await query<{ id: string; password_hash: string; email_verified_at: string | null; status: string; mfa_secret: string | null; mfa_required: boolean }>(
