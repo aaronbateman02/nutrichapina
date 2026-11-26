@@ -371,6 +371,7 @@ describe('M2 recipe library + menu acceptance', () => {
     expect(prop.steps_en.length).toBeGreaterThan(0);
     expect(prop.steps_es.length).toBeGreaterThan(0);
     expect(prop.items.length).toBeGreaterThan(0);
+    expect(prop.diet_tags).toContain('High-Protein');
     expect(ok.body.data.source_url).toContain('https://example.com/');
 
     // save the proposal as a draft with provenance (items resolved to catalog ids,
@@ -383,10 +384,14 @@ describe('M2 recipe library + menu acceptance', () => {
       items: [{ ingredient_id: ingChicken, quantity: 500, unit: 'g' }, { ingredient_id: ingRice, quantity: 200, unit: 'g' }],
       nutrition: { ...(prop.nutrition || {}), provenance: { source_url: ok.body.data.source_url, method: 'ai', extracted_at: new Date().toISOString() } },
       source_url: ok.body.data.source_url, source_method: 'ai_extract',
+      tags: prop.diet_tags || [],
     });
     expect(created.status).toBe(201);
     const revDraft = created.body.data.revision_id as string;
     const det = await diet.get(`/api/v1/staff/recipes/revisions/${revDraft}`);
+    expect(det.body.data.revision.tags).toEqual(['High-Protein']);
+    // edit tags on the draft
+    expect((await diet.put(`/api/v1/staff/recipes/revisions/${revDraft}`).send({ tags: ['High-Protein', 'Low-Calorie'] })).status).toBe(200);
     expect(det.body.data.revision.source_method).toBe('ai_extract');
     expect(det.body.data.revision.source_url).toBe(ok.body.data.source_url);
     // AI provenance + human review => verifiable, exactly like a manual figure
@@ -425,6 +430,7 @@ describe('M2 recipe library + menu acceptance', () => {
     const ok = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'dummy.pdf', mime: 'application/pdf', data_base64: pdfB64 });
     expect(ok.status).toBe(200);
     expect(ok.body.data.proposal.title_en.length).toBeGreaterThan(1);
+    expect(ok.body.data.proposal.diet_tags).toContain('High-Protein');
     expect(ok.body.data.source_url).toBeNull();
     const txt = await diet.post('/api/v1/staff/recipe-imports/file').send({ filename: 'r.txt', mime: 'text/plain', data_base64: Buffer.from('Chicken soup: boil chicken 20 min. Serves 4.', 'utf8').toString('base64') });
     expect(txt.status).toBe(200);

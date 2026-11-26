@@ -167,18 +167,20 @@ const proposalSchema = z.object({
     fat_g: z.number().nonnegative().finite().optional(),
   }).default({}),
   allergens_hint: z.array(z.string().max(64)).max(20).default([]),
+  diet_tags: z.array(z.string().min(1).max(40)).max(20).default([]),
   photo_url: z.string().url().max(2000).nullable().default(null),
 });
 
 const SYSTEM_PROMPT = `You extract a cooking recipe from a web page into a uniform JSON structure.
 Rules:
 - Return ONLY a single JSON object, no prose, no markdown fences.
-- Keys exactly: title_en, title_es, description_en, description_es, servings, active_minutes, total_minutes, difficulty, items, steps_en, steps_es, nutrition, allergens_hint, photo_url.
+- Keys exactly: title_en, title_es, description_en, description_es, servings, active_minutes, total_minutes, difficulty, items, steps_en, steps_es, nutrition, diet_tags, allergens_hint, photo_url.
 - Provide BOTH English and Spanish titles, descriptions and steps (translate faithfully; keep quantities identical).
 - servings: integer yield of the recipe (default 1 if unclear).
 - items: array of {name_en, name_es, quantity, unit, notes}; quantity is a number or null when the page gives none; unit is a short unit like g, kg, ml, cup, tbsp, unit (default "g" is wrong for counts: use "unit", "slice" etc.).
 - steps_en/steps_es: ordered instructions, one string per step.
 - nutrition: include ONLY figures the page actually states (keys: calories, protein_g, carbs_g, fiber_g, fat_g); omit the whole object or leave it empty when unstated. Never invent numbers.
+- diet_tags: dietary or collection labels the page EXPLICITLY states (e.g. High-Protein, Low-Calorie, Diabetes-Friendly, Mediterranean Diet, Nut-Free, Vegetarian). Transcribe only what is written; never infer or invent tags. Empty array when none are stated.
 - allergens_hint: obvious allergens you notice (e.g. milk, egg, peanut, wheat, fish), empty array when unsure.
 - photo_url: main recipe photo URL if clearly present, else null.
 - difficulty: easy, moderate or advanced, else null.`;
@@ -201,6 +203,7 @@ async function callAi(pageTitle: string, pageText: string, sessionId: string): P
       ],
       steps_en: ['Stub cook.', 'Stub serve.'], steps_es: ['Cocinar (stub).', 'Servir (stub).'],
       nutrition: { calories: 400 }, allergens_hint: [], photo_url: null,
+      diet_tags: ['High-Protein'],
     };
   }
   if (provider === 'opencode_go') {
