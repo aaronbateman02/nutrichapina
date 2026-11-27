@@ -9,6 +9,7 @@ import staffRoutes from './routes/staff.js';
 import catalogRoutes from './routes/catalog.js';
 import programRoutes from './routes/programs.js';
 import importRoutes from './routes/imports.js';
+import { billingRouter, webhookRouter } from './routes/billing.js';
 import debugRoutes from './routes/debug.js';
 
 declare global {
@@ -26,6 +27,8 @@ export function buildApp(): express.Express {
   // skips re-parsing (req._body) when the global parser runs after these.
   app.use('/api/v1/staff/recipe-imports/file', express.json({ limit: '8mb' }));
   app.use('/api/v1/staff/uploads', express.json({ limit: '4mb' }));
+  // Webhook keeps raw bytes for signature verification (real Stripe mode).
+  app.use('/api/v1/webhooks/stripe', express.json({ verify: (req, _res, buf) => { (req as unknown as { rawBody?: Buffer }).rawBody = Buffer.from(buf); } }));
   app.use(express.json({ limit: '64kb' }));
   app.use((req, _res, next) => {
     req.id = randomUUID();
@@ -71,6 +74,8 @@ export function buildApp(): express.Express {
   app.use('/api/v1/staff', catalogRoutes);
   app.use('/api/v1/staff', programRoutes);
   app.use('/api/v1/staff', importRoutes);
+  app.use('/api/v1', billingRouter);
+  app.use('/api/v1', webhookRouter);
   if (process.env.ALLOW_DEBUG_OUTBOX === 'true') app.use('/api/v1/_debug', debugRoutes);
 
   app.use('/api', (req, res) => {
