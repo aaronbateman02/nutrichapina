@@ -32,8 +32,9 @@ All smoke rows removed (orders, entitlements, ledger, packages, users); 0 residu
 - D07 refunds: manual review each case (no auto-revoke encoded).
 - D02/D03 prices: homepage rates ($19 / $39-mo / $109 / $199) staged as the draft
   catalog values; still changeable, still not purchasable.
-- OPEN: D11 sales tax (test mode ignores tax), D05 credit expiry, D06 intro window,
+- OPEN: D05 credit expiry, D06 intro window,
   D04 credit minutes (default 30 in code, not contractual), live Stripe keys.
+  D11 answered 2026-11-26: Stripe Tax at checkout before live; test mode ignores tax.
 
 ## What real mode still needs
 `STRIPE_SECRET_KEY` + webhook secret + `STRIPE_MODE=test`; HMAC signature check

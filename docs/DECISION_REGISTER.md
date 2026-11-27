@@ -17,7 +17,7 @@ config/disabled default; safe to build without the final answer.
 | D08 | Nutrition Q&A quota, channels, response time | OPEN | Product-support messages only; nutrition chat disabled |
 | D09 | Personalization boundary: what needs professional review | OPEN | Only dietitian-approved revisions publishable (M2); no auto-personalization |
 | D10 | Privacy/data retention, HIPAA applicability, vendor contracts, consent text | OPEN | Fictional staging data only; no real health data anywhere |
-| D11 | Sales tax / Stripe Tax, receipts, disclosures | OPEN | No live checkout; test mode only when keys exist |
+| D11 | Sales tax / Stripe Tax, receipts, disclosures | DECIDED 2026-11-26: Stripe Tax at checkout, configured before live; test mode ignores tax | No live checkout; test mode only when keys exist |
 | D12 | Retailer partnerships + authorized scope | OPEN | Manual grocery export only |
 | D13 | Calendar provider, availability, video visits, staff roster | OPEN | Availability adapter interface; no live booking |
 | D14 | Nutrition data source + review policy | OPEN | `verified:false` default; estimates labeled illustrative, never seeded as approved |
